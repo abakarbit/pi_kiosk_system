@@ -1,0 +1,2765 @@
+<!doctype html>
+<html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=800, height=480, initial-scale=1.0, user-scalable=no"
+    />
+    <title>SensorHub - RPi Monitor</title>
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      :root {
+        --bg: #dfe3e8;
+        --bg2: #eef0f3;
+        --card: #ffffff;
+        --border: #b8c2cd;
+        --border-lt: #d4dae2;
+        --hdr: #1f4c82;
+        --hdr2: #183d6a;
+        --fg: #1a2332;
+        --fg2: #3a4c60;
+        --fg3: #6e8098;
+        --acc: #1f4c82;
+        --acc-lt: #e0eaf5;
+        --acc-hv: #163a64;
+        --ok: #27824a;
+        --ok-lt: #e2f3ea;
+        --warn: #b57a10;
+        --warn-lt: #fdf4e0;
+        --err: #b92d2d;
+        --err-lt: #fbe8e8;
+        --r: #c43c3c;
+        --g: #27824a;
+        --b: #1f6aab;
+        --rad: 4px;
+        --shd: 0 1px 3px rgba(0, 0, 0, 0.07);
+      }
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+        -webkit-tap-highlight-color: transparent;
+        -webkit-touch-callout: none;
+      }
+      html {
+        touch-action: manipulation;
+      }
+      html,
+      body {
+        width: 800px;
+        height: 480px;
+        overflow: hidden;
+        font-family: "Inter", sans-serif;
+        background: var(--bg);
+        color: var(--fg);
+        -webkit-user-select: none;
+        user-select: none;
+        font-size: 13px;
+      }
+
+      /* HEADER */
+      .hdr {
+        height: 44px;
+        background: linear-gradient(180deg, var(--hdr), var(--hdr2));
+        color: #fff;
+        display: flex;
+        align-items: center;
+        padding: 0 14px;
+        border-bottom: 2px solid #14325a;
+        position: relative;
+        z-index: 50;
+      }
+      .hdr-l {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 120px;
+      }
+      .hdr-l i {
+        font-size: 15px;
+        opacity: 0.85;
+      }
+      .hdr-l span {
+        font-weight: 800;
+        font-size: 14px;
+        letter-spacing: 0.3px;
+      }
+      .hdr-c {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0;
+        cursor: pointer;
+        padding: 4px 12px;
+        border-radius: 4px;
+        transition: background 0.12s;
+        min-width: 0;
+      }
+      .hdr-c:active {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .hdr-date {
+        font-size: 10px;
+        opacity: 0.7;
+        font-weight: 500;
+        line-height: 1.2;
+      }
+      .hdr-time {
+        font-family: "Consolas", "Monaco", monospace;
+        font-size: 16px;
+        font-weight: 700;
+        letter-spacing: 1px;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+        line-height: 1.3;
+      }
+      .hdr-r {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 120px;
+        justify-content: flex-end;
+      }
+      .hwifi {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        cursor: pointer;
+        padding: 5px 8px;
+        border-radius: var(--rad);
+        transition: background 0.12s;
+      }
+      .hwifi:active {
+        background: rgba(255, 255, 255, 0.15);
+      }
+      .hwifi i {
+        font-size: 13px;
+      }
+      .hwifi .hwn {
+        font-size: 10px;
+        max-width: 80px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        opacity: 0.85;
+      }
+      .hwifi.off i,
+      .hwifi.off .hwn {
+        opacity: 0.4;
+      }
+      .hbat {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .hbat-s {
+        width: 26px;
+        height: 12px;
+        border: 1.5px solid rgba(255, 255, 255, 0.65);
+        border-radius: 2px;
+        padding: 1.5px;
+        display: flex;
+        align-items: center;
+      }
+      .hbat-t {
+        width: 2px;
+        height: 5px;
+        background: rgba(255, 255, 255, 0.65);
+        border-radius: 0 1px 1px 0;
+      }
+      .hbat-f {
+        height: 100%;
+        border-radius: 1px;
+        transition:
+          width 0.5s,
+          background 0.4s;
+        min-width: 1px;
+      }
+      .hbat-p {
+        font-size: 11px;
+        font-family: "Consolas", monospace;
+        font-weight: 700;
+        min-width: 30px;
+        text-align: right;
+      }
+
+      /* CONTENT */
+      .cnt {
+        height: calc(480px - 44px);
+        position: relative;
+        overflow: hidden;
+      }
+      .pg {
+        position: absolute;
+        inset: 0;
+        padding: 10px 14px 8px;
+        opacity: 0;
+        visibility: hidden;
+        transition: opacity 0.18s;
+        overflow-y: auto;
+        overflow-x: hidden;
+      }
+      .pg.on {
+        opacity: 1;
+        visibility: visible;
+      }
+      .pg::-webkit-scrollbar {
+        width: 5px;
+      }
+      .pg::-webkit-scrollbar-track {
+        background: var(--bg2);
+      }
+      .pg::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      /* PANEL */
+      .pnl {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        box-shadow: var(--shd);
+      }
+      .pnl-h {
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        padding: 7px 10px;
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .pnl-h i {
+        font-size: 10px;
+        color: var(--acc);
+        opacity: 0.7;
+      }
+
+      /* BUTTONS */
+      .bt {
+        min-height: 40px;
+        padding: 0 16px;
+        border-radius: var(--rad);
+        border: 1px solid var(--border);
+        background: var(--card);
+        color: var(--fg2);
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.08s;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+        white-space: nowrap;
+        box-shadow: 0 1px 0 rgba(0, 0, 0, 0.04);
+      }
+      .bt:active:not(:disabled) {
+        transform: scale(0.97);
+        box-shadow: none;
+        background: var(--bg2);
+      }
+      .bt:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+      .bt-p {
+        background: var(--acc);
+        color: #fff;
+        border-color: var(--acc);
+      }
+      .bt-p:active:not(:disabled) {
+        background: var(--acc-hv);
+        border-color: var(--acc-hv);
+        color: #fff;
+      }
+      .bt-ok {
+        background: var(--ok);
+        color: #fff;
+        border-color: var(--ok);
+      }
+      .bt-ok:active:not(:disabled) {
+        background: #1e6a3b;
+        border-color: #1e6a3b;
+        color: #fff;
+      }
+      .bt-err {
+        border-color: var(--err);
+        color: var(--err);
+      }
+      .bt-err:active:not(:disabled) {
+        background: var(--err-lt);
+      }
+      .bt-w {
+        border-color: var(--warn);
+        color: var(--warn);
+      }
+      .bt-w:active:not(:disabled) {
+        background: var(--warn-lt);
+      }
+      .bt-sm {
+        min-height: 34px;
+        padding: 0 12px;
+        font-size: 11px;
+      }
+      .bt-lg {
+        min-height: 48px;
+        padding: 0 28px;
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      /* PG HEADER */
+      .ph {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 10px;
+        flex-shrink: 0;
+      }
+      .bk {
+        width: 40px;
+        height: 40px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        color: var(--fg2);
+        cursor: pointer;
+        transition: all 0.08s;
+        font-size: 13px;
+        flex-shrink: 0;
+      }
+      .bk:active {
+        background: var(--bg2);
+        transform: scale(0.95);
+      }
+
+      /* DASHBOARD */
+      .dg {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        padding-top: 8px;
+      }
+      .dc {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        padding: 36px 16px;
+        cursor: pointer;
+        transition: all 0.12s;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 14px;
+        text-align: center;
+        box-shadow: var(--shd);
+        position: relative;
+        overflow: hidden;
+      }
+      .dc::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 3px;
+        background: var(--acc);
+        transform: scaleX(0);
+        transition: transform 0.2s;
+        transform-origin: left;
+      }
+      .dc:active {
+        transform: scale(0.97);
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      .dc:active::after {
+        transform: scaleX(1);
+      }
+      .di {
+        width: 56px;
+        height: 56px;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        border: 1px solid var(--border-lt);
+      }
+      .di.is {
+        background: var(--acc-lt);
+        color: var(--acc);
+      }
+      .di.ic {
+        background: var(--ok-lt);
+        color: var(--ok);
+      }
+      .ds {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr;
+        gap: 10px;
+        margin-top: 14px;
+      }
+      .dst {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        padding: 10px;
+        text-align: center;
+        box-shadow: var(--shd);
+      }
+      .dst-l {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        margin-bottom: 3px;
+      }
+      .dst-v {
+        font-family: "Consolas", monospace;
+        font-size: 15px;
+        font-weight: 700;
+        color: var(--acc);
+      }
+
+      /* SENSOR PAGE */
+      .sl {
+        display: grid;
+        grid-template-columns: 1fr 230px;
+        gap: 12px;
+        height: calc(100% - 46px);
+      }
+      .sm {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+        min-height: 0;
+      }
+      .mb {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+      .ms {
+        font-size: 11px;
+        color: var(--fg3);
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .ms .sp {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--border);
+        border-top-color: var(--acc);
+        border-radius: 50%;
+        animation: spin 0.6s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .ra {
+        display: grid;
+        grid-template-columns: 130px 1fr;
+        gap: 12px;
+        flex: 1;
+        min-height: 0;
+      }
+      .cbw {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .cbox {
+        width: 110px;
+        height: 110px;
+        border-radius: var(--rad);
+        border: 2px solid var(--border);
+        background: var(--bg2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 10px;
+        color: var(--fg3);
+        transition: all 0.3s;
+        box-shadow: inset 0 0 0 1px rgba(0, 0, 0, 0.03);
+      }
+      .cbox.filled {
+        box-shadow: 0 2px 16px rgba(0, 0, 0, 0.1);
+      }
+      .chx {
+        font-family: "Consolas", monospace;
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--fg);
+        background: var(--bg2);
+        padding: 4px 12px;
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+      }
+      .rtw {
+        overflow: auto;
+        flex: 1;
+        min-height: 0;
+      }
+      .rtw::-webkit-scrollbar {
+        width: 4px;
+      }
+      .rtw::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      .rtbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .rtbl th {
+        background: var(--bg2);
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+        padding: 7px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .rtbl td {
+        padding: 7px 10px;
+        font-size: 12px;
+        color: var(--fg2);
+        border-bottom: 1px solid var(--border-lt);
+      }
+      .rtbl tr:last-child td {
+        border-bottom: none;
+      }
+      .rtbl .vm {
+        font-family: "Consolas", monospace;
+        font-weight: 600;
+      }
+      .rtbl .dt {
+        font-size: 11px;
+        color: var(--fg3);
+      }
+      .cr {
+        color: var(--r);
+      }
+      .cg {
+        color: var(--g);
+      }
+      .cbl {
+        color: var(--b);
+      }
+      .bgr {
+        background: rgba(196, 60, 60, 0.04);
+      }
+      .bgg {
+        background: rgba(39, 130, 74, 0.04);
+      }
+      .bgb {
+        background: rgba(31, 106, 171, 0.04);
+      }
+
+      /* LATEST */
+      .lp {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .lsc {
+        flex: 1;
+        overflow-y: auto;
+        min-height: 0;
+      }
+      .lsc::-webkit-scrollbar {
+        width: 4px;
+      }
+      .lsc::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      .li {
+        padding: 7px 10px;
+        border-bottom: 1px solid var(--border-lt);
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 3px 8px;
+        font-size: 11px;
+      }
+      .li:last-child {
+        border-bottom: none;
+      }
+      .li-t {
+        font-family: "Consolas", monospace;
+        font-size: 10px;
+        color: var(--fg3);
+        font-weight: 600;
+      }
+      .li-v {
+        display: flex;
+        gap: 6px;
+        font-family: "Consolas", monospace;
+        font-size: 11px;
+      }
+      .li-h {
+        font-family: "Consolas", monospace;
+        font-size: 10px;
+        color: var(--fg3);
+      }
+      .eb {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+        color: var(--fg3);
+        font-size: 11px;
+        gap: 6px;
+      }
+      .eb i {
+        font-size: 20px;
+        opacity: 0.3;
+      }
+
+      /* CALIBRATION */
+      .cll {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        height: calc(100% - 46px);
+      }
+      .pb {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        padding: 7px 10px;
+        background: var(--bg2);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        flex-shrink: 0;
+      }
+      .pb-l {
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+      }
+      .pi {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 12px;
+      }
+      .pi .pk {
+        font-weight: 700;
+        font-size: 10px;
+        color: var(--fg3);
+      }
+      .pi .pv {
+        font-family: "Consolas", monospace;
+        font-weight: 700;
+      }
+      .ctw {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .csc {
+        height: 255px;
+        overflow-y: auto;
+      }
+      .csc::-webkit-scrollbar {
+        width: 5px;
+      }
+      .csc::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      .ctbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .ctbl th {
+        background: var(--bg2);
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 7px 8px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .ctbl td {
+        padding: 6px 8px;
+        font-size: 11px;
+        font-family: "Consolas", monospace;
+        color: var(--fg2);
+        border-bottom: 1px solid var(--border-lt);
+      }
+      .ctbl tr:last-child td {
+        border-bottom: none;
+      }
+      .ctbl .rn {
+        color: var(--fg3);
+        font-weight: 600;
+        width: 28px;
+      }
+      .ca {
+        display: flex;
+        gap: 6px;
+        flex-shrink: 0;
+        flex-wrap: wrap;
+      }
+
+      /* HISTORY */
+      .hll {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        height: calc(100% - 46px);
+      }
+      .htbl .hck {
+        width: 28px;
+        padding: 6px 6px;
+        text-align: center;
+      }
+      .htb {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        margin-bottom: 8px;
+        flex-shrink: 0;
+      }
+      .htb input[type="date"] {
+        background: var(--card);
+        border: 1px solid var(--border);
+        color: var(--fg2);
+        padding: 6px 8px;
+        border-radius: var(--rad);
+        font-size: 11px;
+        font-family: "Consolas", monospace;
+        outline: none;
+        min-height: 36px;
+      }
+      .htb input[type="date"]:focus {
+        border-color: var(--acc);
+      }
+      .htw {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+      }
+      .hsc {
+        height: 100%;
+        overflow-y: auto;
+      }
+      .hsc::-webkit-scrollbar {
+        width: 5px;
+      }
+      .hsc::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+      .htbl {
+        width: 100%;
+        border-collapse: collapse;
+      }
+      .htbl th {
+        background: var(--bg2);
+        font-size: 10px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        padding: 7px 10px;
+        text-align: left;
+        border-bottom: 1px solid var(--border);
+        position: sticky;
+        top: 0;
+        z-index: 1;
+      }
+      .htbl td {
+        padding: 7px 10px;
+        font-size: 11px;
+        color: var(--fg2);
+        border-bottom: 1px solid var(--border-lt);
+      }
+      .htbl tr:last-child td {
+        border-bottom: none;
+      }
+
+      /* CALIB LOADING */
+      .cal-loading {
+        display: none;
+        position: absolute;
+        inset: 0;
+        z-index: 5;
+        background: rgba(255, 255, 255, 0.75);
+        backdrop-filter: blur(2px);
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+      }
+      .cal-loading.on {
+        display: flex;
+      }
+      .cl-sp {
+        width: 32px;
+        height: 32px;
+        border: 3px solid var(--border);
+        border-top-color: var(--acc);
+        border-radius: 50%;
+        animation: spin 0.7s linear infinite;
+      }
+      .cl-tx {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--fg2);
+      }
+
+      /* MODAL BASE */
+      .mo {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.28);
+        z-index: 1000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        visibility: hidden;
+        transition: all 0.18s;
+      }
+      .mo.show {
+        opacity: 1;
+        visibility: visible;
+      }
+      .mbox {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 5px;
+        box-shadow: 0 6px 24px rgba(0, 0, 0, 0.15);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+        transform: scale(0.96);
+        transition: transform 0.18s;
+      }
+      .mo.show .mbox {
+        transform: scale(1);
+      }
+      .mh {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 14px;
+        background: var(--bg2);
+        border-bottom: 1px solid var(--border);
+        min-height: 42px;
+        flex-shrink: 0;
+      }
+      .mh h3 {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--fg);
+      }
+      .mx {
+        width: 36px;
+        height: 36px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: none;
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        color: var(--fg3);
+        cursor: pointer;
+        font-size: 12px;
+      }
+      .mx:active {
+        background: var(--err-lt);
+        border-color: var(--err);
+        color: var(--err);
+      }
+      .mf {
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+        gap: 6px;
+        padding: 10px 14px;
+        border-top: 1px solid var(--border);
+        background: var(--bg2);
+        flex-shrink: 0;
+      }
+      .mbo {
+        overflow-y: auto;
+        min-height: 0;
+      }
+      .mbo::-webkit-scrollbar {
+        width: 4px;
+      }
+      .mbo::-webkit-scrollbar-thumb {
+        background: var(--border);
+        border-radius: 3px;
+      }
+
+      /* WIFI MODAL */
+      .w-mbox {
+        width: 580px;
+        max-height: 430px;
+      }
+      .wi {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 10px;
+        border-radius: var(--rad);
+        cursor: pointer;
+        transition: background 0.08s;
+        border: 1px solid transparent;
+        margin-bottom: 2px;
+      }
+      .wi:active {
+        background: var(--acc-lt);
+      }
+      .wi.conn {
+        background: var(--ok-lt);
+        border-color: var(--ok);
+      }
+      .wi i.ws {
+        font-size: 14px;
+        width: 20px;
+        text-align: center;
+        color: var(--fg2);
+      }
+      .wi.conn i.ws {
+        color: var(--ok);
+      }
+      .wi .wn {
+        flex: 1;
+        font-size: 12px;
+        font-weight: 500;
+      }
+      .wi .wl {
+        font-size: 10px;
+        color: var(--fg3);
+      }
+      .wi .wbdg {
+        font-size: 9px;
+        font-weight: 700;
+        color: var(--ok);
+        background: var(--ok-lt);
+        padding: 2px 8px;
+        border-radius: 10px;
+        border: 1px solid rgba(39, 130, 74, 0.2);
+      }
+      .si {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 30px;
+        color: var(--fg3);
+        font-size: 12px;
+      }
+      .si i {
+        animation: spin 0.8s linear infinite;
+      }
+
+      .ws1 {
+        display: flex;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .ws1.off {
+        display: none;
+      }
+      .ws2 {
+        display: none;
+        flex-direction: column;
+        min-height: 0;
+      }
+      .ws2.on {
+        display: flex;
+      }
+
+      .pdr {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        padding: 8px 10px;
+        border-bottom: 1px solid var(--border);
+        flex-shrink: 0;
+        background: var(--bg2);
+      }
+      .pdf {
+        flex: 1;
+        height: 38px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        padding: 0 10px;
+        display: flex;
+        align-items: center;
+        font-family: "Consolas", monospace;
+        font-size: 14px;
+        color: var(--fg);
+        overflow: hidden;
+        white-space: nowrap;
+      }
+      .pdf .pp {
+        color: var(--fg3);
+        font-family: "Inter", sans-serif;
+        font-size: 12px;
+      }
+      .pdf .pc {
+        animation: cblk 1s step-end infinite;
+        color: var(--acc);
+        font-weight: 700;
+      }
+      @keyframes cblk {
+        50% {
+          opacity: 0;
+        }
+      }
+      .pe {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        color: var(--fg3);
+        cursor: pointer;
+        font-size: 12px;
+        flex-shrink: 0;
+      }
+      .pe:active {
+        background: var(--bg2);
+        color: var(--fg);
+      }
+
+      /* ON-SCREEN KEYBOARD */
+      .osk {
+        padding: 5px 6px 6px;
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        flex: 1;
+        justify-content: center;
+        min-height: 0;
+      }
+      .osk.dim {
+        opacity: 0.3;
+        pointer-events: none;
+      }
+      .osr {
+        display: flex;
+        gap: 3px;
+        width: 100%;
+      }
+      .ok {
+        height: 38px;
+        background: linear-gradient(180deg, #fafbfd 0%, #f0f1f3 100%);
+        border: 1px solid #aeb7c2;
+        border-bottom: 2px solid #96a0ac;
+        border-radius: 3px;
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--fg);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+        transition: all 0.03s;
+        flex: 1 1 0%;
+        min-width: 0;
+        padding: 0 2px;
+        font-family: "Inter", sans-serif;
+      }
+      .ok:active {
+        background: #cdd3da;
+        border-bottom-width: 1px;
+        box-shadow: none;
+        transform: translateY(1px);
+      }
+      .ok.ksh {
+        flex: 0 0 52px;
+        background: linear-gradient(180deg, #dce4ee, #c8d0dc);
+        border-color: #9aa8b8;
+        border-bottom-color: #8896a6;
+        color: var(--acc);
+        font-size: 12px;
+        font-weight: 700;
+      }
+      .ok.ksh.act {
+        background: linear-gradient(180deg, var(--acc), var(--acc-hv));
+        border-color: var(--acc);
+        color: #fff;
+      }
+      .ok.kdl {
+        flex: 0 0 52px;
+        color: var(--err);
+        font-size: 13px;
+      }
+      .ok.ksp {
+        flex: 3 1 0%;
+        font-size: 11px;
+        color: var(--fg3);
+        letter-spacing: 0.3px;
+      }
+      .ok.kcn {
+        flex: 2.2 1 0%;
+        background: linear-gradient(180deg, #2fa85c, #238a48);
+        border-color: #27824a;
+        border-bottom-color: #1c6e38;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        letter-spacing: 0.2px;
+        gap: 5px;
+      }
+      .ok.kcn:active {
+        background: #1c6e38;
+        border-bottom-color: #175c2e;
+      }
+      .ok.kcn:disabled {
+        background: #a0a8b2;
+        border-color: #8a929c;
+        color: #fff;
+        pointer-events: none;
+      }
+
+      /* DATETIME MODAL */
+      .dt-mbox {
+        width: 340px;
+      }
+      .dt-rows {
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+      .dt-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .dt-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--fg3);
+        text-transform: uppercase;
+        letter-spacing: 0.4px;
+        min-width: 70px;
+        flex-shrink: 0;
+      }
+      .dt-input {
+        flex: 1;
+        height: 40px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        padding: 0 10px;
+        font-size: 13px;
+        font-family: "Consolas", monospace;
+        color: var(--fg);
+        outline: none;
+      }
+      .dt-input:focus {
+        border-color: var(--acc);
+      }
+      .dt-sels {
+        display: flex;
+        gap: 4px;
+        flex: 1;
+      }
+      .dt-sel {
+        flex: 1;
+        height: 40px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        padding: 0 4px;
+        font-size: 13px;
+        font-family: "Consolas", monospace;
+        color: var(--fg);
+        outline: none;
+        cursor: pointer;
+        appearance: auto;
+      }
+      .dt-sel:focus {
+        border-color: var(--acc);
+      }
+
+      /* TOAST */
+      .twrap {
+        position: fixed;
+        bottom: 12px;
+        right: 12px;
+        z-index: 2000;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .tt {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--rad);
+        padding: 10px 14px;
+        font-size: 11px;
+        color: var(--fg);
+        display: flex;
+        align-items: center;
+        gap: 7px;
+        box-shadow: 0 3px 14px rgba(0, 0, 0, 0.12);
+        animation: tin 0.22s ease;
+        max-width: 280px;
+        min-height: 40px;
+      }
+      .tt.to {
+        animation: tout 0.22s ease forwards;
+      }
+      .tt i {
+        font-size: 14px;
+        flex-shrink: 0;
+      }
+      .tt.ts i {
+        color: var(--ok);
+      }
+      .tt.te i {
+        color: var(--err);
+      }
+      .tt.ti i {
+        color: var(--acc);
+      }
+      .tt.twn i {
+        color: var(--warn);
+      }
+      @keyframes tin {
+        from {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+        to {
+          opacity: 1;
+          transform: translateX(0);
+        }
+      }
+      @keyframes tout {
+        from {
+          opacity: 1;
+          transform: translateX(0);
+        }
+        to {
+          opacity: 0;
+          transform: translateX(16px);
+        }
+      }
+      .sd {
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        display: inline-block;
+        margin-right: 3px;
+      }
+      .sd.on {
+        background: var(--ok);
+        box-shadow: 0 0 4px rgba(39, 130, 74, 0.35);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          animation-duration: 0.01ms !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <!-- HEADER -->
+    <header class="hdr" role="banner">
+      <div class="hdr-l">
+        <i class="fas fa-microchip"></i><span>SensorHub</span>
+      </div>
+      <div
+        class="hdr-c"
+        id="hdrClock"
+        onclick="openDtModal()"
+        role="button"
+        tabindex="0"
+        aria-label="Atur tanggal dan waktu"
+      >
+        <span class="hdr-date" id="hDate">--</span>
+        <span class="hdr-time" id="hTime">--:--:--</span>
+      </div>
+      <div class="hdr-r">
+        <div
+          class="hwifi off"
+          id="hwifi"
+          onclick="openWifi()"
+          role="button"
+          tabindex="0"
+          aria-label="WiFi"
+        >
+          <i class="fas fa-wifi"></i
+          ><span class="hwn" id="hwN">Tidak terhubung</span>
+        </div>
+        <div class="hbat" aria-label="Baterai">
+          <div class="hbat-s">
+            <div
+              class="hbat-f"
+              id="hbatF"
+              style="width: 0%; background: rgba(255, 255, 255, 0.45)"
+            ></div>
+          </div>
+          <div class="hbat-t"></div>
+          <span class="hbat-p" id="hbatP">--%</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- CONTENT -->
+    <div class="cnt">
+      <!-- DASHBOARD -->
+      <section class="pg on" id="pg-dash">
+        <div class="dg">
+          <div class="dc" onclick="go('sensor')" role="button" tabindex="0">
+            <div class="di is"><i class="fas fa-eye-dropper"></i></div>
+            <div style="font-size: 14px; font-weight: 700">
+              Pembacaan Sensor
+            </div>
+            <div style="font-size: 11px; color: var(--fg3); line-height: 1.4">
+              Ukur dan baca nilai warna dari color sensor
+            </div>
+          </div>
+          <div class="dc" onclick="go('calib')" role="button" tabindex="0">
+            <div class="di ic"><i class="fas fa-sliders-h"></i></div>
+            <div style="font-size: 14px; font-weight: 700">
+              Kalibrasi Sensor
+            </div>
+            <div style="font-size: 11px; color: var(--fg3); line-height: 1.4">
+              Kalibrasi parameter pengali RGB sensor
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- SENSOR -->
+      <section class="pg" id="pg-sensor">
+        <div class="ph">
+          <button class="bk" onclick="go('dash')" aria-label="Kembali">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div>
+            <div style="font-size: 15px; font-weight: 700">
+              Pembacaan Sensor Warna
+            </div>
+            <div style="font-size: 10px; color: var(--fg3); margin-top: 1px">
+              Klik tombol ukur untuk membaca sensor
+            </div>
+          </div>
+        </div>
+        <div class="sl">
+          <div class="sm">
+            <div class="mb">
+              <button class="bt bt-p bt-lg" id="btnM" onclick="doMeasure()">
+                <i class="fas fa-play"></i> Ukur
+              </button>
+              <div class="ms" id="mSt"></div>
+            </div>
+            <div class="ra">
+              <div class="cbw">
+                <div class="cbox" id="cBox"><span>Belum ada data</span></div>
+                <div class="chx" id="cHex">------</div>
+              </div>
+              <div
+                class="pnl"
+                style="
+                  display: flex;
+                  flex-direction: column;
+                  min-height: 0;
+                  overflow: hidden;
+                "
+              >
+                <div class="pnl-h">
+                  <i class="fas fa-table"></i> Hasil Pembacaan
+                </div>
+                <div class="rtw" id="rWrap">
+                  <div class="eb" id="rEmpty">
+                    <i class="fas fa-flask"></i
+                    ><span>Klik "Ukur" untuk membaca sensor</span>
+                  </div>
+                  <table class="rtbl" id="rTbl" style="display: none">
+                    <thead>
+                      <tr>
+                        <th>Parameter</th>
+                        <th>Value</th>
+                        <th>Deskripsi</th>
+                      </tr>
+                    </thead>
+                    <tbody id="rBody"></tbody>
+                  </table>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="pnl lp">
+            <div class="pnl-h">
+              <i class="fas fa-history"></i> Data Terakhir
+            </div>
+            <div class="lsc" id="lSc">
+              <div class="eb" id="lEmpty">
+                <i class="fas fa-inbox"></i><span>Belum ada data</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- CALIBRATION PAGE -->
+      <section class="pg" id="pg-calib" style="position: relative">
+        <div class="ph">
+          <button class="bk" onclick="go('dash')" aria-label="Kembali">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div>
+            <div style="font-size: 15px; font-weight: 700">
+              Kalibrasi Sensor Warna
+            </div>
+            <div style="font-size: 10px; color: var(--fg3); margin-top: 1px">
+              Pengukuran dan penyimpanan parameter pengali RGB
+            </div>
+          </div>
+        </div>
+        <div class="cll">
+          <div class="pb">
+            <span class="pb-l">Name Kalibrasi :</span>
+            <input
+              type="text"
+              id="calibName"
+              placeholder="Masukkan nama kalibrasi"
+              style="
+                flex: 1;
+                background: var(--card);
+                border: 1px solid var(--border);
+                color: var(--fg2);
+                padding: 6px 10px;
+                border-radius: var(--rad);
+                font-size: 11px;
+                font-family: &quot;Consolas&quot;, monospace;
+                outline: none;
+              "
+            />
+          </div>
+          <div class="pnl ctw" style="position: relative">
+            <div class="csc">
+              <table class="ctbl">
+                <thead>
+                  <tr>
+                    <th>No</th>
+                    <th>Waktu</th>
+                    <th>Red (HZ)</th>
+                    <th>Blue (HZ)</th>
+                    <th>Clear (HZ)</th>
+                    <th>Green (HZ)</th>
+                  </tr>
+                </thead>
+                <tbody id="cBody"></tbody>
+              </table>
+              <div class="eb" id="cEmpty">
+                <i class="fas fa-flask"></i
+                ><span>Belum ada data pengukuran</span
+                ><span style="font-size: 10px; opacity: 0.6"
+                  >Klik "Pengukuran" untuk memulai</span
+                >
+              </div>
+            </div>
+            <div class="cal-loading" id="calLoad">
+              <div class="cl-sp"></div>
+              <div class="cl-tx">Membaca sensor...</div>
+            </div>
+          </div>
+          <div class="ca" id="calBtns">
+            <button class="bt bt-p" id="btnPengukuran" onclick="pengukuran()">
+              <i class="fas fa-plus"></i> Pengukuran
+            </button>
+            <button class="bt bt-w" id="btnUlang" onclick="ulang()">
+              <i class="fas fa-redo"></i> Ulangi
+            </button>
+            <button class="bt" onclick="go('history')">
+              <i class="fas fa-clock-rotate-left"></i> Riwayat
+            </button>
+            <button class="bt bt-err" id="btnBatal" onclick="batal()">
+              <i class="fas fa-times"></i> Batal
+            </button>
+            <button class="bt bt-ok" id="btnSimpan" onclick="simpan()">
+              <i class="fas fa-check"></i> Simpan
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <!-- HISTORY -->
+      <section class="pg" id="pg-history">
+        <div class="ph">
+          <button class="bk" onclick="go('calib')" aria-label="Kembali">
+            <i class="fas fa-chevron-left"></i>
+          </button>
+          <div style="flex: 1">
+            <div style="font-size: 15px; font-weight: 700">
+              History Kalibrasi
+            </div>
+            <div style="font-size: 10px; color: var(--fg3); margin-top: 1px">
+              Data kalibrasi yang telah disimpan
+            </div>
+          </div>
+        </div>
+        <div class="hll">
+          <div class="ca" style="align-items: center; padding: 2px 0;">
+            <label style="display:flex;align-items:center;gap:5px;font-size:11px;font-weight:600;color:var(--fg2);cursor:pointer;user-select:none;">
+              <input type="checkbox" id="cbAll" onchange="toggleAllCb(this)" style="width:14px;height:14px;accent-color:var(--acc);">
+              Pilih Semua
+            </label>
+            <button class="bt bt-sm bt-p" onclick="expCSV()">
+              <i class="fas fa-download"></i> Export CSV Terpilih
+            </button>
+          </div>
+          <div class="pnl htw">
+            <div class="hsc">
+              <table class="htbl">
+                <thead>
+                  <tr>
+                    <th class="hck"></th>
+                    <th>ID</th>
+                    <th>Nama Kalibrasi</th>
+                    <th>Tanggal</th>
+                    <th>Jumlah Data</th>
+                  </tr>
+                </thead>
+                <tbody id="hBody"></tbody>
+              </table>
+              <div class="eb" id="hEmpty">
+                <i class="fas fa-archive"></i
+                ><span>Belum ada history kalibrasi</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <!-- WIFI MODAL -->
+    <div class="mo" id="wMod" role="dialog" aria-modal="true" aria-label="WiFi">
+      <div class="mbox w-mbox">
+        <div class="ws1" id="wS1">
+          <div class="mh">
+            <h3>
+              <i
+                class="fas fa-wifi"
+                style="margin-right: 6px; color: var(--acc)"
+              ></i
+              >Pengaturan WiFi
+            </h3>
+            <button class="mx" onclick="clWifi()" aria-label="Tutup">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="mbo" id="wBody" style="padding: 6px 8px">
+            <div class="si" id="wScan">
+              <i class="fas fa-spinner"></i><span>Memindai jaringan...</span>
+            </div>
+            <div id="wList" style="display: none"></div>
+          </div>
+        </div>
+        <div class="ws2" id="wS2">
+          <div class="mh">
+            <button
+              class="bk"
+              onclick="wBack()"
+              style="
+                background: transparent;
+                border: none;
+                color: var(--fg2);
+                font-size: 12px;
+                width: auto;
+                padding: 0 6px 0 0;
+                min-height: auto;
+                box-shadow: none;
+              "
+              aria-label="Kembali"
+            >
+              <i class="fas fa-chevron-left"></i> Kembali
+            </button>
+            <span
+              id="wSSID"
+              style="
+                flex: 1;
+                text-align: center;
+                font-size: 12px;
+                font-weight: 600;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+                padding: 0 8px;
+              "
+            ></span>
+            <button class="mx" onclick="clWifi()" aria-label="Tutup">
+              <i class="fas fa-times"></i>
+            </button>
+          </div>
+          <div class="pdr">
+            <div class="pdf" id="pField">
+              <span class="pp" id="pDisp">Masukkan password...</span
+              ><span class="pc" id="pCur" style="display: none">|</span>
+            </div>
+            <button
+              class="pe"
+              onclick="tglPwd()"
+              aria-label="Tampilkan password"
+            >
+              <i class="fas fa-eye" id="pEye"></i>
+            </button>
+            <button class="pe" onclick="clrPwd()" aria-label="Hapus">
+              <i class="fas fa-times-circle"></i>
+            </button>
+          </div>
+          <div class="osk" id="osk"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- DATETIME MODAL -->
+    <div
+      class="mo"
+      id="dtMod"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Atur Tanggal Waktu"
+    >
+      <div class="mbox dt-mbox">
+        <div class="mh">
+          <h3>
+            <i
+              class="fas fa-clock"
+              style="margin-right: 6px; color: var(--acc)"
+            ></i
+            >Atur Tanggal & Waktu
+          </h3>
+          <button class="mx" onclick="clDtMod()" aria-label="Tutup">
+            <i class="fas fa-times"></i>
+          </button>
+        </div>
+        <div class="dt-rows">
+          <div class="dt-row">
+            <span class="dt-label">Tanggal</span>
+            <input type="date" class="dt-input" id="dtDate" />
+          </div>
+          <div class="dt-row">
+            <span class="dt-label">Waktu</span>
+            <div class="dt-sels">
+              <select class="dt-sel" id="dtH"></select>
+              <select class="dt-sel" id="dtM"></select>
+              <select class="dt-sel" id="dtS"></select>
+            </div>
+          </div>
+        </div>
+        <div class="mf">
+          <button class="bt" onclick="clDtMod()">Batal</button>
+          <button class="bt bt-p" onclick="applyDt()">
+            <i class="fas fa-check"></i> Terapkan
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- CONFIRM MODAL -->
+    <div class="mo" id="cfMod" role="dialog" aria-modal="true" aria-label="Konfirmasi">
+      <div class="mbox" style="max-width:320px;">
+        <div class="mh">
+          <h3 id="cfTitle" style="font-size:13px;"></h3>
+        </div>
+        <div style="padding:14px 16px;font-size:12px;color:var(--fg2);line-height:1.6;" id="cfMsg"></div>
+        <div class="mf">
+          <button class="bt" id="cfNo" onclick="cfClose()">Tidak</button>
+          <button class="bt" id="cfYes">Ya, Lanjutkan</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TOAST -->
+    <div class="twrap" id="tWrap" aria-live="polite"></div>
+
+    <script>
+      /* ============================================================
+   SensorHub — Embedded Desktop Application
+   Touch-optimized, on-screen keyboard, datetime setting
+   ============================================================ */
+
+      const S = {
+        pg: "dash",
+        measuring: false,
+        calibLoading: false,
+        latest: [],
+        calibD: [],
+        calibH: [],
+        cp: { kr: null, kg: null, kb: null },
+        ups: { v: 0, a: 0, w: 0, pct: 0 },
+        wifiOn: false,
+        wifiSSID: "",
+        upsLogs: [],
+      };
+
+      let pwdVal = "",
+        pwdVis = false,
+        shiftOn = false,
+        selSSID = null,
+        wifiConn = false;
+      let timeOffset = 0; // Offset ms dari waktu sistem untuk simulasi
+
+      // === Init ===
+      document.addEventListener("DOMContentLoaded", () => {
+        loadDB();
+        updBat(S.ups.pct);
+        updWifi();
+        renderLat();
+        initDtSelects();
+        tickClock();
+        setInterval(tickClock, 1000);
+        readUPS();
+        setInterval(readUPS, 30000);
+        // Periksa status WiFi dari backend
+        fetch("/api/wifi/status")
+          .then((r) => r.json())
+          .then((res) => {
+            if (res.success && res.data) {
+              S.wifiOn = res.data.connected;
+              S.wifiSSID = res.data.ssid || "";
+              updWifi();
+            }
+          })
+          .catch(() => {});
+      });
+
+      // === Jam & Tanggal ===
+      function tickClock() {
+        const d = new Date(Date.now() + timeOffset);
+        const days = ["Min", "Sen", "Sel", "Rab", "Kam", "Jum", "Sab"];
+        const mos = [
+          "Jan",
+          "Feb",
+          "Mar",
+          "Apr",
+          "Mei",
+          "Jun",
+          "Jul",
+          "Agu",
+          "Sep",
+          "Okt",
+          "Nov",
+          "Des",
+        ];
+        document.getElementById("hDate").textContent =
+          days[d.getDay()] +
+          ", " +
+          d.getDate() +
+          " " +
+          mos[d.getMonth()] +
+          " " +
+          d.getFullYear();
+        document.getElementById("hTime").textContent =
+          String(d.getHours()).padStart(2, "0") +
+          ":" +
+          String(d.getMinutes()).padStart(2, "0") +
+          ":" +
+          String(d.getSeconds()).padStart(2, "0");
+      }
+
+      // === Navigasi ===
+      function go(p) {
+        document
+          .querySelectorAll(".pg")
+          .forEach((e) => e.classList.remove("on"));
+        document.getElementById("pg-" + p).classList.add("on");
+        S.pg = p;
+        if (p === "history") loadHist();
+        if (p === "calib") loadCalibData();
+      }
+
+      // === Utilitas ===
+      function fT(d) {
+        return d.toLocaleTimeString("id-ID", {
+          hour: "2-digit",
+          minute: "2-digit",
+          second: "2-digit",
+        });
+      }
+      function fD(d) {
+        return d.toLocaleDateString("id-ID", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric",
+        });
+      }
+      function fdIn(d) {
+        return d.toISOString().split("T")[0];
+      }
+      function cl(v, l, h) {
+        return Math.max(l, Math.min(h, v));
+      }
+      function ri(l, h) {
+        return Math.floor(Math.random() * (h - l + 1)) + l;
+      }
+      function h2(n) {
+        return n.toString(16).padStart(2, "0").toUpperCase();
+      }
+
+      // === Toast ===
+      function toast(m, t = "ti") {
+        const ic = {
+          ts: "fa-check-circle",
+          te: "fa-exclamation-circle",
+          ti: "fa-info-circle",
+          twn: "fa-exclamation-triangle",
+        };
+        const w = document.getElementById("tWrap"),
+          e = document.createElement("div");
+        e.className = "tt " + t;
+        e.innerHTML = `<i class="fas ${ic[t] || ic.ti}"></i><span>${m}</span>`;
+        w.appendChild(e);
+        setTimeout(() => {
+          e.classList.add("to");
+          setTimeout(() => e.remove(), 220);
+        }, 3000);
+      }
+
+      // === Konfirmasi Modal ===
+      let _cfCallback = null;
+      function showConfirm(title, message, yesLabel, yesCls, cb) {
+        document.getElementById("cfTitle").textContent = title;
+        document.getElementById("cfMsg").textContent = message;
+        const yBtn = document.getElementById("cfYes");
+        yBtn.textContent = yesLabel || "Ya, Lanjutkan";
+        yBtn.className = "bt " + (yesCls || "");
+        _cfCallback = cb;
+        yBtn.onclick = () => { cfClose(); if (_cfCallback) _cfCallback(); };
+        document.getElementById("cfMod").classList.add("show");
+      }
+      function cfClose() {
+        document.getElementById("cfMod").classList.remove("show");
+        _cfCallback = null;
+      }
+
+      // === Disable/enable tombol kalibrasi ===
+      function setCalibBtns(dis) {
+        ["btnPengukuran", "btnUlang", "btnBatal", "btnSimpan"].forEach((id) => {
+          document.getElementById(id).disabled = dis;
+        });
+      }
+
+      // ============================================================
+      //  SENSOR WARNA — On-demand dengan loading
+      // ============================================================
+      function doMeasure() {
+        if (S.measuring) return;
+        S.measuring = true;
+        const btn = document.getElementById("btnM"),
+          st = document.getElementById("mSt");
+        btn.disabled = true;
+        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Membaca...';
+        st.innerHTML = '<span class="sp"></span> Menunggu pembacaan sensor...';
+
+        /* PRODUKSI: Ganti setTimeout dengan fetch('/api/sensor/read') */
+        setTimeout(() => {
+          const t = Date.now() / 3000;
+          const raw = {
+            r: cl(Math.round(130 + 75 * Math.sin(t) + ri(-8, 8)), 0, 255),
+            g: cl(Math.round(145 + 55 * Math.cos(t * 0.8) + ri(-8, 8)), 0, 255),
+            b: cl(
+              Math.round(110 + 85 * Math.sin(t * 1.2 + 1) + ri(-8, 8)),
+              0,
+              255,
+            ),
+            c: 0,
+          };
+          raw.c = cl(
+            Math.round((raw.r + raw.g + raw.b) * 0.92 + ri(-5, 5)),
+            0,
+            255,
+          );
+          let cr = raw.r,
+            cg = raw.g,
+            cb = raw.b;
+          if (S.cp.kr !== null) {
+            cr = cl(Math.round(raw.r * S.cp.kr), 0, 255);
+            cg = cl(Math.round(raw.g * S.cp.kg), 0, 255);
+            cb = cl(Math.round(raw.b * S.cp.kb), 0, 255);
+          }
+          showResult(raw, { r: cr, g: cg, b: cb });
+
+          const entry = {
+            time: fT(new Date()),
+            raw,
+            cal: { r: cr, g: cg, b: cb },
+            hex: "#" + h2(cr) + h2(cg) + h2(cb),
+          };
+          S.latest.push(entry);
+          if (S.latest.length > 20) S.latest = S.latest.slice(-20);
+          saveDB();
+          renderLat();
+
+          S.measuring = false;
+          btn.disabled = false;
+          btn.innerHTML = '<i class="fas fa-play"></i> Ukur';
+          st.innerHTML =
+            '<span style="color:var(--ok);"><i class="fas fa-check-circle"></i> Selesai</span>';
+          setTimeout(() => {
+            if (!S.measuring) st.innerHTML = "";
+          }, 3500);
+        }, 1200);
+      }
+
+      function showResult(raw, cal) {
+        const box = document.getElementById("cBox"),
+          hex = document.getElementById("cHex");
+        const empty = document.getElementById("rEmpty"),
+          tbl = document.getElementById("rTbl"),
+          body = document.getElementById("rBody");
+        const hexS = "#" + h2(cal.r) + h2(cal.g) + h2(cal.b);
+        box.style.backgroundColor = `rgb(${cal.r},${cal.g},${cal.b})`;
+        box.innerHTML = "";
+        box.classList.add("filled");
+        hex.textContent = hexS;
+        empty.style.display = "none";
+        tbl.style.display = "table";
+        const descR = cDesc(cal.r, "Merah"),
+          descG = cDesc(cal.g, "Hijau"),
+          descB = cDesc(cal.b, "Biru");
+        const dom = cDom(cal.r, cal.g, cal.b);
+        const bri = Math.round(cal.r * 0.299 + cal.g * 0.587 + cal.b * 0.114);
+        const briD =
+          bri < 60
+            ? "Gelap"
+            : bri < 140
+              ? "Sedang"
+              : bri < 200
+                ? "Terang"
+                : "Sangat terang";
+        const hasC = S.cp.kr !== null;
+        body.innerHTML = `
+        <tr class="bgr"><td class="vm cr">R (Raw)</td><td class="vm">${raw.r}</td><td class="dt">${descR}</td></tr>
+        <tr class="bgg"><td class="vm cg">G (Raw)</td><td class="vm">${raw.g}</td><td class="dt">${descG}</td></tr>
+        <tr class="bgb"><td class="vm cbl">B (Raw)</td><td class="vm">${raw.b}</td><td class="dt">${descB}</td></tr>
+        <tr><td class="vm">Clear</td><td class="vm">${raw.c}</td><td class="dt">Intensitas cahaya total</td></tr>
+        <tr><td class="vm cr">R (Kalibrasi)</td><td class="vm">${cal.r}</td><td class="dt">${hasC ? "x" + S.cp.kr : "Belum dikalibrasi"}</td></tr>
+        <tr><td class="vm cg">G (Kalibrasi)</td><td class="vm">${cal.g}</td><td class="dt">${hasC ? "x" + S.cp.kg : "Belum dikalibrasi"}</td></tr>
+        <tr><td class="vm cbl">B (Kalibrasi)</td><td class="vm">${cal.b}</td><td class="dt">${hasC ? "x" + S.cp.kb : "Belum dikalibrasi"}</td></tr>
+        <tr><td class="vm" style="font-weight:700;">Hex</td><td class="vm" style="font-weight:700;">${hexS}</td><td class="dt">Kode warna hex</td></tr>
+        <tr><td class="vm" style="font-weight:700;">Dominan</td><td class="vm" style="font-weight:700;">${dom.n}</td><td class="dt">${dom.d}</td></tr>
+        <tr><td class="vm">Kecerahan</td><td class="vm">${bri}</td><td class="dt">${briD}</td></tr>`;
+      }
+      function cDesc(v, n) {
+        return v < 30
+          ? n + " sangat rendah"
+          : v < 80
+            ? n + " rendah"
+            : v < 150
+              ? n + " sedang"
+              : v < 220
+                ? n + " tinggi"
+                : n + " sangat tinggi";
+      }
+      function cDom(r, g, b) {
+        const m = Math.max(r, g, b),
+          d = m - Math.min(r, g, b);
+        if (d < 20) return { n: "Abu-abu/Putih", d: "RGB seimbang" };
+        if (m === r) return { n: "Merah", d: "Merah dominan" };
+        if (m === g) return { n: "Hijau", d: "Hijau dominan" };
+        return { n: "Biru", d: "Biru dominan" };
+      }
+
+      function renderLat() {
+        const w = document.getElementById("lSc"),
+          e = document.getElementById("lEmpty"),
+          d = S.latest.slice(-15).reverse();
+        if (!d.length) {
+          w.innerHTML = "";
+          w.appendChild(e);
+          e.style.display = "flex";
+          return;
+        }
+        e.style.display = "none";
+        w.innerHTML = d
+          .map(
+            (m) =>
+              `<div class="li"><span class="li-t">${m.time}</span><span class="li-h">${m.hex}</span><div class="li-v"><span class="cr">R:${m.cal.r}</span><span class="cg">G:${m.cal.g}</span><span class="cbl">B:${m.cal.b}</span></div></div>`,
+          )
+          .join("");
+      }
+
+      // ============================================================
+      //  UPS BATERAI
+      // ============================================================
+      function readUPS() {
+        const base =
+          11.7 +
+          0.5 * Math.sin(Date.now() / 9e4) +
+          (Math.random() - 0.5) * 0.08;
+        const v = cl(parseFloat(base.toFixed(2)), 10.8, 12.6);
+        const a = cl(
+          parseFloat((0.25 + Math.random() * 0.45).toFixed(2)),
+          0,
+          3,
+        );
+        const w = parseFloat((v * a).toFixed(2));
+        const pct = cl(Math.round(((v - 10.8) / 1.8) * 100), 0, 100);
+        S.ups = { v, a, w, pct };
+        S.upsLogs.push({ ts: new Date().toISOString(), v, a, w, pct });
+        if (S.upsLogs.length > 1000) S.upsLogs = S.upsLogs.slice(-1000);
+        saveDB();
+        updBat(pct);
+        document.getElementById("dsV").textContent = v.toFixed(1) + "V";
+        document.getElementById("dsA").textContent = a.toFixed(2) + "A";
+        document.getElementById("dsW").textContent = w.toFixed(1) + "W";
+      }
+      function updBat(p) {
+        const f = document.getElementById("hbatF"),
+          l = document.getElementById("hbatP");
+        f.style.width = p + "%";
+        l.textContent = p + "%";
+        let c = p <= 15 ? "var(--err)" : p <= 30 ? "var(--warn)" : "var(--ok)";
+        f.style.background = c;
+        l.style.color = c;
+      }
+
+      // ============================================================
+      //  KALIBRASI — Dengan loading overlay
+      // ============================================================
+      function pengukuran() {
+        if (S.calibLoading) return;
+        S.calibLoading = true;
+        document.getElementById("calLoad").classList.add("on");
+        setCalibBtns(true);
+
+        // Ambil data dari /api/kalibrasi/pengukuran
+
+        fetch("/api/kalibrasi/pengukuran")
+          .then((res) => res.json())
+          .then((res) => {
+            if (res.success && res.data) {
+              renderCal(res.data);
+              toast("Pengukuran berhasil ditambahkan", "ts");
+            } else {
+              toast(res.error || "Data pengukuran tidak valid", "te");
+            }
+          })
+          .catch(() => {
+            toast("Gagal membaca sensor untuk kalibrasi", "te");
+          })
+          .finally(() => {
+            S.calibLoading = false;
+            document.getElementById("calLoad").classList.remove("on");
+            setCalibBtns(false);
+          });
+
+        
+      }
+
+
+      function ulang() {
+        if (S.calibLoading) return;
+        S.calibLoading = true;
+        setCalibBtns(true);
+
+        fetch("/api/kalibrasi/ulangi")
+          .then((res) => res.json())
+          .then((res) => {
+            if (res.success) {
+              renderCal(res.data || []);
+              toast("Data terakhir berhasil dihapus", "ts");
+            } else {
+              toast(res.error || "Gagal menghapus data terakhir", "te");
+            }
+          })
+          .catch(() => {
+            toast("Gagal menghapus data terakhir", "te");
+          })
+          .finally(() => {
+            S.calibLoading = false;
+            setCalibBtns(false);
+          });
+      }
+      function batal() {
+        if (S.calibLoading) return;
+        showConfirm(
+          "Batalkan Kalibrasi",
+          "Semua data pengukuran yang belum disimpan akan dihapus permanen. Yakin ingin membatalkan?",
+          "Ya, Batalkan",
+          "bt-err",
+          () => {
+            S.calibLoading = true;
+            setCalibBtns(true);
+            fetch("/api/kalibrasi/batal", { method: "POST" })
+              .then((res) => res.json())
+              .then((res) => {
+                if (res.success) {
+                  renderCal([]);
+                  document.getElementById("calibName").value = "";
+                  toast("Semua data kalibrasi dibatalkan", "te");
+                } else {
+                  toast(res.error || "Gagal membatalkan kalibrasi", "te");
+                }
+              })
+              .catch(() => {
+                toast("Gagal membatalkan kalibrasi", "te");
+              })
+              .finally(() => {
+                S.calibLoading = false;
+                setCalibBtns(false);
+              });
+          },
+        );
+      }
+      function simpan() {
+        const nameInput = document.getElementById("calibName");
+        const calibname = nameInput.value.trim();
+        if (!calibname) {
+          return toast("Masukkan nama kalibrasi", "twn");
+        }
+        if (S.calibLoading) return;
+
+        showConfirm(
+          "Simpan Kalibrasi",
+          'Simpan kalibrasi dengan nama "' + calibname + '"? Data tidak dapat diubah setelah disimpan.',
+          "Ya, Simpan",
+          "bt-ok",
+          () => {
+            S.calibLoading = true;
+            setCalibBtns(true);
+            fetch("/api/kalibrasi/simpan", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ calibname }),
+            })
+              .then((res) => res.json())
+              .then((res) => {
+                if (res.success) {
+                  renderCal([]);
+                  nameInput.value = "";
+                  toast(
+                    "Kalibrasi '" + res.data.calibname + "' disimpan (" + res.data.sum + " data)",
+                    "ts",
+                  );
+                } else {
+                  toast(res.error || "Gagal menyimpan kalibrasi", "te");
+                }
+              })
+              .catch(() => {
+                toast("Gagal menyimpan kalibrasi", "te");
+              })
+              .finally(() => {
+                S.calibLoading = false;
+                setCalibBtns(false);
+              });
+          },
+        );
+      }
+      function renderCal(data) {
+        const b = document.getElementById("cBody"),
+          e = document.getElementById("cEmpty");
+        if (!data || !data.length) {
+          b.innerHTML = "";
+          e.style.display = "flex";
+          return;
+        }
+        e.style.display = "none";
+        b.innerHTML = data
+          .map(
+            (m, i) =>
+              `<tr>
+                <td class="vm">${i + 1}</td>
+                <td class="vm">${m.timestamp}</td>
+                <td class="vm cr">${m.red}</td>
+                <td class="vm cbl">${m.blue}</td>
+                <td class="vm">${m.clear}</td>
+                <td class="vm cg">${m.green}</td>
+              </tr>`,
+          )
+          .join("");
+      }
+
+      function loadCalibData() {
+        fetch("/api/kalibrasi/list")
+          .then((res) => res.json())
+          .then((res) => {
+            if (res.success) renderCal(res.data || []);
+          })
+          .catch(() => {});
+      }
+      
+
+      // ============================================================
+      //  HISTORY
+      // ============================================================
+      function renderHist(rows) {
+        const b = document.getElementById("hBody"),
+          e = document.getElementById("hEmpty"),
+          cbAll = document.getElementById("cbAll");
+        if (!rows || !rows.length) {
+          b.innerHTML = "";
+          e.style.display = "flex";
+          if (cbAll) cbAll.checked = false;
+          return;
+        }
+        e.style.display = "none";
+        b.innerHTML = rows
+          .map(
+            (h) =>
+              `<tr>
+                <td class="hck"><input type="checkbox" class="hChk" data-id="${h.id}" style="width:14px;height:14px;accent-color:var(--acc);"></td>
+                <td style="font-weight:600;color:var(--fg3);">#${h.id}</td>
+                <td>${h.calibname}</td>
+                <td>${h.timestamp}</td>
+                <td>${h.sum} data</td>
+              </tr>`,
+          )
+          .join("");
+        S.calibH = rows;
+        if (cbAll) cbAll.checked = false;
+      }
+      function toggleAllCb(master) {
+        document.querySelectorAll(".hChk").forEach((cb) => {
+          cb.checked = master.checked;
+        });
+      }
+      function loadHist() {
+        fetch("/api/kalibrasi/history")
+          .then((res) => res.json())
+          .then((res) => {
+            if (res.success) renderHist(res.data || []);
+            else toast(res.error || "Gagal memuat riwayat", "te");
+          })
+          .catch(() => toast("Gagal memuat riwayat kalibrasi", "te"));
+      }
+      function expCSV() {
+        const checked = [...document.querySelectorAll(".hChk:checked")];
+        if (!checked.length) return toast("Pilih data yang akan di-export", "twn");
+        const ids = checked.map((cb) => cb.dataset.id).join(",");
+        fetch("/api/kalibrasi/export?ids=" + ids)
+          .then((r) => r.json())
+          .then((res) => {
+            if (!res.success) return toast(res.error || "Gagal export", "te");
+            const { headers, details } = res.data;
+            let csv = "=== HEADER KALIBRASI ===\n";
+            csv += "ID,Nama Kalibrasi,Tanggal,Jumlah Data\n";
+            headers.forEach((h) => {
+              csv += `${h.id},"${h.calibname}","${h.timestamp}",${h.sum}\n`;
+            });
+            csv += "\n=== DETAIL PENGUKURAN ===\n";
+            csv += "ID,Header ID,Tanggal,Red(Hz),Blue(Hz),Clear(Hz),Green(Hz)\n";
+            details.forEach((d) => {
+              csv += `${d.id},${d.header_id},"${d.timestamp}",${d.red},${d.blue},${d.clear},${d.green}\n`;
+            });
+            const a = document.createElement("a");
+            a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
+            a.download = "kalibrasi_" + fdIn(new Date()) + ".csv";
+            a.click();
+            toast(`Export ${headers.length} kalibrasi berhasil`, "ts");
+          })
+          .catch(() => toast("Gagal export data", "te"));
+      }
+
+      // ============================================================
+      //  DATETIME MODAL — Popup pengaturan tanggal & waktu
+      // ============================================================
+      function initDtSelects() {
+        const hS = document.getElementById("dtH"),
+          mS = document.getElementById("dtM"),
+          sS = document.getElementById("dtS");
+        for (let i = 0; i < 24; i++)
+          hS.innerHTML += `<option value="${i}">${String(i).padStart(2, "0")}</option>`;
+        for (let i = 0; i < 60; i++) {
+          mS.innerHTML += `<option value="${i}">${String(i).padStart(2, "0")}</option>`;
+          sS.innerHTML += `<option value="${i}">${String(i).padStart(2, "0")}</option>`;
+        }
+      }
+
+      function openDtModal() {
+        const d = new Date(Date.now() + timeOffset);
+        document.getElementById("dtDate").value = fdIn(d);
+        document.getElementById("dtH").value = d.getHours();
+        document.getElementById("dtM").value = d.getMinutes();
+        document.getElementById("dtS").value = d.getSeconds();
+        document.getElementById("dtMod").classList.add("show");
+      }
+      function clDtMod() {
+        document.getElementById("dtMod").classList.remove("show");
+      }
+
+      function applyDt() {
+        const dateVal = document.getElementById("dtDate").value;
+        const h = parseInt(document.getElementById("dtH").value);
+        const m = parseInt(document.getElementById("dtM").value);
+        const s = parseInt(document.getElementById("dtS").value);
+
+        if (!dateVal) {
+          toast("Pilih tanggal", "twn");
+          return;
+        }
+
+        // Buat target datetime dari input user
+        const target = new Date(
+          dateVal +
+            "T" +
+            String(h).padStart(2, "0") +
+            ":" +
+            String(m).padStart(2, "0") +
+            ":" +
+            String(s).padStart(2, "0"),
+        );
+        if (isNaN(target.getTime())) {
+          toast("Tanggal/waktu tidak valid", "te");
+          return;
+        }
+
+        // Hitung offset antara target dan waktu sistem saat ini
+        timeOffset = target.getTime() - Date.now();
+        tickClock();
+        clDtMod();
+
+        // Kirim ke backend untuk set waktu sistem
+        fetch("/api/system/settime", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ date: dateVal, hour: h, minute: m, second: s }),
+        })
+          .then((r) => r.json())
+          .then((res) => {
+            if (res.success) toast("Tanggal & waktu diperbarui", "ts");
+            else toast(res.error || "Gagal mengatur waktu sistem", "te");
+          })
+          .catch(() => toast("Gagal terhubung ke server", "te"));
+      }
+
+      // ============================================================
+      //  WiFi & ON-SCREEN KEYBOARD
+      // ============================================================
+      let scannedNets = []; // Hasil scan API: { ssid, signal, security, in_use }
+
+      function openWifi() {
+        document.getElementById("wMod").classList.add("show");
+        selSSID = null;
+        pwdVal = "";
+        pwdVis = false;
+        shiftOn = false;
+        wifiConn = false;
+        showS1();
+      }
+      function clWifi() {
+        document.getElementById("wMod").classList.remove("show");
+      }
+
+      function showS1() {
+        document.getElementById("wS1").classList.remove("off");
+        document.getElementById("wS2").classList.remove("on");
+        document.getElementById("wScan").style.display = "flex";
+        document.getElementById("wList").style.display = "none";
+        fetch("/api/wifi/scan")
+          .then((r) => r.json())
+          .then((res) => {
+            document.getElementById("wScan").style.display = "none";
+            if (res.success) {
+              scannedNets = res.data || [];
+            } else {
+              scannedNets = [];
+              toast(res.error || "Gagal scan WiFi", "te");
+            }
+            renderWL();
+            document.getElementById("wList").style.display = "block";
+          })
+          .catch(() => {
+            document.getElementById("wScan").style.display = "none";
+            scannedNets = [];
+            renderWL();
+            document.getElementById("wList").style.display = "block";
+            toast("Gagal scan WiFi", "te");
+          });
+      }
+      function showS2() {
+        document.getElementById("wS1").classList.add("off");
+        document.getElementById("wS2").classList.add("on");
+        document.getElementById("wSSID").textContent = selSSID;
+        document.getElementById("osk").classList.remove("dim");
+        wifiConn = false;
+        renderPwd();
+        renderOSK();
+      }
+      function wBack() {
+        showS1();
+      }
+
+      function renderWL() {
+        const list = document.getElementById("wList");
+        if (!scannedNets.length) {
+          list.innerHTML =
+            '<div class="eb"><i class="fas fa-wifi"></i><span>Tidak ada jaringan ditemukan</span></div>';
+          return;
+        }
+        list.innerHTML = scannedNets
+          .map((n) => {
+            const ic = n.in_use || (S.wifiOn && S.wifiSSID === n.ssid);
+            const locked =
+              n.security && n.security !== "Open" && n.security !== "--";
+            const op = n.signal > 66 ? "1" : n.signal > 33 ? "0.65" : "0.35";
+            let c = "wi";
+            if (ic) c += " conn";
+            const ssidSafe = n.ssid.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
+            return `<div class="${c}" onclick="pickW('${ssidSafe}',${locked})"><i class="fas fa-wifi ws" style="opacity:${op}"></i><span class="wn">${n.ssid}</span>${locked ? '<i class="fas fa-lock wl"></i>' : '<i class="fas fa-lock-open wl" style="opacity:.35"></i>'}${ic ? '<span class="wbdg">Terhubung</span>' : ""}</div>`;
+          })
+          .join("");
+      }
+
+      function pickW(ssid, locked) {
+        const net = scannedNets.find((n) => n.ssid === ssid);
+        if ((net && net.in_use) || S.wifiSSID === ssid) {
+          toast("Sudah terhubung ke " + ssid, "ti");
+          return;
+        }
+        selSSID = ssid;
+        pwdVal = "";
+        pwdVis = false;
+        shiftOn = false;
+        showS2();
+        if (!locked) {
+          // Jaringan terbuka — langsung hubungkan tanpa password
+          document.getElementById("osk").classList.add("dim");
+          document.getElementById("pDisp").innerHTML =
+            '<span style="color:var(--fg3);font-family:Inter,sans-serif;font-size:12px;">Menghubungkan ke ' +
+            ssid +
+            "...</span>";
+          document.getElementById("pCur").style.display = "none";
+          setTimeout(doConnWifi, 200);
+        }
+      }
+
+      // === Password ===
+      function renderPwd() {
+        const d = document.getElementById("pDisp"),
+          cur = document.getElementById("pCur");
+        if (!pwdVal) {
+          d.className = "pp";
+          d.textContent = "Masukkan password...";
+          cur.style.display = "none";
+          return;
+        }
+        cur.style.display = "inline";
+        d.className = "";
+        d.textContent = pwdVis ? pwdVal : "\u2022".repeat(pwdVal.length);
+      }
+      function tglPwd() {
+        pwdVis = !pwdVis;
+        renderPwd();
+        document.getElementById("pEye").className = pwdVis
+          ? "fas fa-eye-slash"
+          : "fas fa-eye";
+      }
+      function clrPwd() {
+        pwdVal = "";
+        renderPwd();
+      }
+
+      // === On-Screen Keyboard ===
+      // Layout: setiap baris = array of {ch, cls, icon, label}
+      // ch: karakter yang dimasukkan
+      // cls: ksh=shift, kdl=delete, ksp=spasi, kcn=connect
+      // icon: ikon FA (opsional)
+      // label: teks tambahan di samping ikon (opsional)
+      function renderOSK() {
+        const c = document.getElementById("osk");
+        const rows = [
+          [
+            { ch: "1" },
+            { ch: "2" },
+            { ch: "3" },
+            { ch: "4" },
+            { ch: "5" },
+            { ch: "6" },
+            { ch: "7" },
+            { ch: "8" },
+            { ch: "9" },
+            { ch: "0" },
+          ],
+          [
+            { ch: "q" },
+            { ch: "w" },
+            { ch: "e" },
+            { ch: "r" },
+            { ch: "t" },
+            { ch: "y" },
+            { ch: "u" },
+            { ch: "i" },
+            { ch: "o" },
+            { ch: "p" },
+          ],
+          [
+            { ch: "a" },
+            { ch: "s" },
+            { ch: "d" },
+            { ch: "f" },
+            { ch: "g" },
+            { ch: "h" },
+            { ch: "j" },
+            { ch: "k" },
+            { ch: "l", cls: "kdl", icon: "fa-delete-left" },
+          ],
+          [
+            { ch: "SHIFT", cls: "ksh" },
+            { ch: "z" },
+            { ch: "x" },
+            { ch: "c" },
+            { ch: "v" },
+            { ch: "b" },
+            { ch: "n" },
+            { ch: "m" },
+            { ch: "@" },
+            { ch: "#" },
+          ],
+          [
+            { ch: "-" },
+            { ch: "_" },
+            { ch: "." },
+            { ch: "!" },
+            { ch: "&" },
+            { ch: "SPASI", cls: "ksp" },
+            {
+              ch: "HUBUNGKAN",
+              cls: "kcn",
+              icon: "fa-plug",
+              label: "Hubungkan",
+            },
+          ],
+        ];
+
+        c.innerHTML = rows
+          .map((row) => {
+            const keys = row
+              .map((k) => {
+                // Tentukan teks yang ditampilkan
+                let display = "";
+                if (k.label && k.icon) {
+                  display = `<i class="fas ${k.icon}" style="font-size:12px;"></i> ${k.label}`;
+                } else if (k.icon) {
+                  display = `<i class="fas ${k.icon}"></i>`;
+                } else {
+                  const ch =
+                    shiftOn && k.ch.length === 1 ? k.ch.toUpperCase() : k.ch;
+                  display = ch;
+                }
+
+                // Tentukan onclick
+                let oc = "";
+                if (k.ch === "SHIFT") oc = "kShift()";
+                else if (k.ch === "SPASI") oc = "kSpace()";
+                else if (k.ch === "HUBUNGKAN") oc = "doConnWifi()";
+                else if (k.cls === "kdl") oc = "kDel()";
+                else {
+                  const ch =
+                    shiftOn && k.ch.length === 1 ? k.ch.toUpperCase() : k.ch;
+                  oc = `kChar('${ch}')`;
+                }
+
+                // Tentukan class tambahan
+                let extraCls = k.cls || "";
+                if (k.ch === "SHIFT" && shiftOn) extraCls += " act";
+
+                return `<div class="ok ${extraCls}" onclick="${oc}">${display}</div>`;
+              })
+              .join("");
+            return `<div class="osr">${keys}</div>`;
+          })
+          .join("");
+      }
+
+      function kChar(ch) {
+        if (wifiConn) return;
+        pwdVal += ch;
+        renderPwd();
+      }
+      function kDel() {
+        if (wifiConn) return;
+        pwdVal = pwdVal.slice(0, -1);
+        renderPwd();
+      }
+      function kShift() {
+        if (wifiConn) return;
+        shiftOn = !shiftOn;
+        renderOSK();
+      }
+      function kSpace() {
+        if (wifiConn) return;
+        pwdVal += " ";
+        renderPwd();
+      }
+
+      function doConnWifi() {
+        if (wifiConn) return;
+        const net = scannedNets.find((n) => n.ssid === selSSID);
+        const locked =
+          net &&
+          net.security &&
+          net.security !== "Open" &&
+          net.security !== "--";
+        if (locked && !pwdVal) {
+          toast("Masukkan password", "twn");
+          return;
+        }
+
+        wifiConn = true;
+        document.getElementById("pDisp").innerHTML =
+          '<span style="color:var(--fg3);font-family:Inter,sans-serif;font-size:12px;">Menghubungkan ke ' +
+          selSSID +
+          "...</span>";
+        document.getElementById("pCur").style.display = "none";
+        document.getElementById("osk").classList.add("dim");
+
+        fetch("/api/wifi/connect", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ssid: selSSID, password: pwdVal }),
+        })
+          .then((r) => r.json())
+          .then((res) => {
+            if (res.success) {
+              S.wifiOn = true;
+              S.wifiSSID = selSSID;
+              saveDB();
+              updWifi();
+              document.getElementById("pDisp").innerHTML =
+                '<span style="color:var(--ok);font-family:Inter,sans-serif;font-size:12px;"><i class="fas fa-check-circle"></i> Terhubung!</span>';
+              toast("Berhasil terhubung ke " + selSSID, "ts");
+              setTimeout(clWifi, 1200);
+            } else {
+              wifiConn = false;
+              document.getElementById("osk").classList.remove("dim");
+              document.getElementById("pDisp").innerHTML = "";
+              document.getElementById("pCur").style.display = "inline";
+              renderPwd();
+              toast(res.error || "Gagal terhubung ke " + selSSID, "te");
+            }
+          })
+          .catch(() => {
+            wifiConn = false;
+            document.getElementById("osk").classList.remove("dim");
+            document.getElementById("pDisp").innerHTML = "";
+            document.getElementById("pCur").style.display = "inline";
+            renderPwd();
+            toast("Gagal terhubung ke server", "te");
+          });
+      }
+
+      function updWifi() {
+        const el = document.getElementById("hwifi"),
+          nm = document.getElementById("hwN");
+        if (S.wifiOn) {
+          el.classList.remove("off");
+          nm.textContent = S.wifiSSID;
+        } else {
+          el.classList.add("off");
+          nm.textContent = "Tidak terhubung";
+        }
+      }
+
+      // ============================================================
+      //  LOCAL STORAGE
+      // ============================================================
+      function saveDB() {
+        try {
+          localStorage.setItem(
+            "sh4",
+            JSON.stringify({
+              cp: S.cp,
+              ch: S.calibH,
+              lt: S.latest,
+              ul: S.upsLogs,
+              wo: S.wifiOn,
+              ws: S.wifiSSID,
+              to: timeOffset,
+            }),
+          );
+        } catch (e) {}
+      }
+      function loadDB() {
+        try {
+          const r = localStorage.getItem("sh4");
+          if (!r) return;
+          const d = JSON.parse(r);
+          if (d.cp) S.cp = d.cp;
+          if (d.ch) S.calibH = d.ch;
+          if (d.lt) S.latest = d.lt;
+          if (d.ul) S.upsLogs = d.upsLogs;
+          if (d.wo !== undefined) S.wifiOn = d.wo;
+          if (d.ws) S.wifiSSID = d.ws;
+          if (d.to) timeOffset = d.to;
+        } catch (e) {}
+      }
+
+      // Keyboard shortcut & overlay click
+      document.addEventListener("keydown", (e) => {
+        if (e.key === "Escape") {
+          clWifi();
+          clDtMod();
+        }
+      });
+      document.getElementById("wMod").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) clWifi();
+      });
+      document.getElementById("dtMod").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) clDtMod();
+      });
+      document.getElementById("cfMod").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) cfClose();
+      });
+    </script>
+  </body>
+</html>

@@ -7,18 +7,14 @@
       content="width=800, height=480, initial-scale=1.0, user-scalable=no"
     />
     <title>SensorHub - RPi Monitor</title>
-    <link
-      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-      rel="stylesheet"
-    />
-    <link
-      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
-      rel="stylesheet"
-    />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/all.min.css') }}">
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"
       rel="stylesheet"
     />
+
+    <!-- <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}"> -->
     <style>
       :root {
         --bg: #dfe3e8;
@@ -1344,7 +1340,10 @@
           aria-label="WiFi"
         >
           <i class="fas fa-wifi"></i
-          ><span class="hwn" id="hwN">Tidak terhubung</span>
+          ><div style="display:flex;flex-direction:column;line-height:1.3;">
+            <span class="hwn" id="hwN">Tidak terhubung</span>
+            <span id="hwIP" style="font-size:9px;opacity:0.65;display:none;font-family:'Consolas',monospace;"></span>
+          </div>
         </div>
         <div class="hbat" aria-label="Baterai">
           <div class="hbat-s">
@@ -1480,6 +1479,8 @@
               type="text"
               id="calibName"
               placeholder="Masukkan nama kalibrasi"
+              readonly
+              onclick="openCalibOSK()"
               style="
                 flex: 1;
                 background: var(--card);
@@ -1490,6 +1491,7 @@
                 font-size: 11px;
                 font-family: &quot;Consolas&quot;, monospace;
                 outline: none;
+                cursor: pointer;
               "
             />
           </div>
@@ -1728,6 +1730,20 @@
       </div>
     </div>
 
+    <!-- CALIB NAME OSK -->
+    <div id="calibOskBg" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.5);" onclick="closeCalibOSK(false)"></div>
+    <div id="calibOskPanel" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:151;background:var(--bg);border-top:2px solid var(--border);border-radius:14px 14px 0 0;padding:10px 10px 8px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
+        <span style="font-size:11px;font-weight:600;color:var(--fg3);white-space:nowrap;">Nama Kalibrasi</span>
+        <div style="flex:1;background:var(--card);border:1px solid var(--acc);border-radius:var(--rad);padding:5px 10px;font-size:12px;font-family:'Consolas',monospace;color:var(--fg2);min-height:30px;display:flex;align-items:center;gap:1px;">
+          <span id="calibOskDisp" style="word-break:break-all;"></span><span style="font-weight:300;opacity:0.7;">|</span>
+        </div>
+        <button class="bt bt-ok" style="font-size:11px;padding:5px 13px;white-space:nowrap;" onclick="closeCalibOSK(true)"><i class="fas fa-check"></i> Selesai</button>
+        <button class="bt" style="font-size:11px;padding:5px 9px;" onclick="closeCalibOSK(false)"><i class="fas fa-times"></i></button>
+      </div>
+      <div class="osk" style="flex:none;" id="calibOsk"></div>
+    </div>
+
     <!-- TOAST -->
     <div class="twrap" id="tWrap" aria-live="polite"></div>
 
@@ -1748,6 +1764,7 @@
         ups: { v: 0, a: 0, w: 0, pct: 0 },
         wifiOn: false,
         wifiSSID: "",
+        wifiIP: "",
         upsLogs: [],
       };
 
@@ -1776,6 +1793,7 @@
             if (res.success && res.data) {
               S.wifiOn = res.data.connected;
               S.wifiSSID = res.data.ssid || "";
+              S.wifiIP = res.data.ip_address || "";
               updWifi();
             }
           })
@@ -2285,7 +2303,7 @@
       function expCSV() {
         const checked = [...document.querySelectorAll(".hChk:checked")];
         if (!checked.length) return toast("Pilih data yang akan di-export", "twn");
-        const ids = checked.map((cb) => cb.dataset.id).join(";");
+        const ids = checked.map((cb) => cb.dataset.id).join(",");
         fetch("/api/kalibrasi/export?ids=" + ids)
           .then((r) => r.json())
           .then((res) => {
@@ -2331,7 +2349,7 @@
         document.getElementById("dtH").value = d.getHours();
         document.getElementById("dtM").value = d.getMinutes();
         document.getElementById("dtS").value = d.getSeconds();
-        document.getElementById("dtMod").classList.add("show");
+        //document.getElementById("dtMod").classList.add("show");
       }
       function clDtMod() {
         document.getElementById("dtMod").classList.remove("show");
@@ -2673,8 +2691,12 @@
             if (res.success) {
               S.wifiOn = true;
               S.wifiSSID = selSSID;
-              saveDB();
+              S.wifiIP = "";
               updWifi();
+              fetch("/api/wifi/status").then(r=>r.json()).then(st=>{
+                if(st.success && st.data){ S.wifiIP = st.data.ip_address || ""; updWifi(); }
+              }).catch(()=>{});
+              saveDB();
               document.getElementById("pDisp").innerHTML =
                 '<span style="color:var(--ok);font-family:Inter,sans-serif;font-size:12px;"><i class="fas fa-check-circle"></i> Terhubung!</span>';
               toast("Berhasil terhubung ke " + selSSID, "ts");
@@ -2700,14 +2722,87 @@
 
       function updWifi() {
         const el = document.getElementById("hwifi"),
-          nm = document.getElementById("hwN");
+          nm = document.getElementById("hwN"),
+          ip = document.getElementById("hwIP");
         if (S.wifiOn) {
           el.classList.remove("off");
           nm.textContent = S.wifiSSID;
+          if (S.wifiIP) {
+            ip.textContent = S.wifiIP;
+            ip.style.display = "block";
+          } else {
+            ip.style.display = "none";
+          }
         } else {
           el.classList.add("off");
           nm.textContent = "Tidak terhubung";
+          ip.style.display = "none";
         }
+      }
+
+      // ============================================================
+      //  CALIB NAME — On-screen keyboard
+      // ============================================================
+      let calibOskVal = "", calibOskShift = false;
+
+      function openCalibOSK() {
+        calibOskVal = document.getElementById("calibName").value;
+        calibOskShift = false;
+        document.getElementById("calibOskBg").style.display = "block";
+        document.getElementById("calibOskPanel").style.display = "block";
+        renderCalibOskDisp();
+        renderCalibOSK();
+      }
+      function closeCalibOSK(apply) {
+        if (apply) document.getElementById("calibName").value = calibOskVal;
+        document.getElementById("calibOskBg").style.display = "none";
+        document.getElementById("calibOskPanel").style.display = "none";
+      }
+      function renderCalibOskDisp() {
+        document.getElementById("calibOskDisp").textContent = calibOskVal;
+      }
+      function calibKChar(ch) {
+        calibOskVal += ch;
+        if (calibOskShift) { calibOskShift = false; renderCalibOSK(); }
+        renderCalibOskDisp();
+      }
+      function calibKDel() {
+        calibOskVal = calibOskVal.slice(0, -1);
+        renderCalibOskDisp();
+      }
+      function calibKShift() {
+        calibOskShift = !calibOskShift;
+        renderCalibOSK();
+      }
+      function calibKSpace() {
+        calibOskVal += " ";
+        renderCalibOskDisp();
+      }
+      function renderCalibOSK() {
+        const c = document.getElementById("calibOsk");
+        const sh = calibOskShift;
+        const rows = [
+          [{ch:"1"},{ch:"2"},{ch:"3"},{ch:"4"},{ch:"5"},{ch:"6"},{ch:"7"},{ch:"8"},{ch:"9"},{ch:"0"}],
+          [{ch:"q"},{ch:"w"},{ch:"e"},{ch:"r"},{ch:"t"},{ch:"y"},{ch:"u"},{ch:"i"},{ch:"o"},{ch:"p"}],
+          [{ch:"a"},{ch:"s"},{ch:"d"},{ch:"f"},{ch:"g"},{ch:"h"},{ch:"j"},{ch:"k"},{ch:"l"},{ch:"DEL",cls:"kdl",icon:"fa-delete-left"}],
+          [{ch:"SHIFT",cls:"ksh"},{ch:"z"},{ch:"x"},{ch:"c"},{ch:"v"},{ch:"b"},{ch:"n"},{ch:"m"},{ch:"-"},{ch:"_"}],
+          [{ch:"."},{ch:","},{ch:"("},{ch:")"},{ch:"SPASI",cls:"ksp"},{ch:"/"}],
+        ];
+        c.innerHTML = rows.map(row => {
+          const keys = row.map(k => {
+            const ch = sh && k.ch.length === 1 ? k.ch.toUpperCase() : k.ch;
+            const display = k.icon ? `<i class="fas ${k.icon}"></i>` : ch;
+            let oc = "";
+            if (k.ch === "SHIFT") oc = "calibKShift()";
+            else if (k.ch === "SPASI") oc = "calibKSpace()";
+            else if (k.cls === "kdl") oc = "calibKDel()";
+            else oc = `calibKChar('${ch}')`;
+            let extraCls = k.cls || "";
+            if (k.ch === "SHIFT" && sh) extraCls += " act";
+            return `<div class="ok ${extraCls}" onclick="${oc}">${display}</div>`;
+          }).join("");
+          return `<div class="osr">${keys}</div>`;
+        }).join("");
       }
 
       // ============================================================
@@ -2749,6 +2844,10 @@
         if (e.key === "Escape") {
           clWifi();
           clDtMod();
+          closeCalibOSK(false);
+        }
+        if (e.key === "Enter" && document.getElementById("calibOskPanel").style.display !== "none") {
+          closeCalibOSK(true);
         }
       });
       document.getElementById("wMod").addEventListener("click", (e) => {

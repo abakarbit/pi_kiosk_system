@@ -377,6 +377,22 @@ def api_system_settime():
         return err(f"Gagal mengatur waktu: {str(e)}")
 
 
+@app.route("/api/system/ip")
+def api_system_ip():
+    """Ambil alamat IP lokal aktif dari semua interface jaringan."""
+    try:
+        result = subprocess.run(
+            ["hostname", "-I"],
+            capture_output=True, text=True, timeout=5
+        )
+        ips = [ip for ip in result.stdout.strip().split() if ip and not ip.startswith("127.")]
+        primary = ips[0] if ips else ""
+        return ok({"ip": primary, "all": ips})
+    except Exception as e:
+        logger.error("api_system_ip error: %s", e)
+        return err(str(e))
+
+
 @app.route("/api/kalibrasi/export")
 def api_kalibrasi_export():
     """

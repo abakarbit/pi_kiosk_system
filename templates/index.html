@@ -1765,6 +1765,7 @@
         wifiOn: false,
         wifiSSID: "",
         wifiIP: "",
+        systemIP: "",
         upsLogs: [],
       };
 
@@ -1798,6 +1799,21 @@
             }
           })
           .catch(() => {});
+        // Ambil IP sistem (fallback jika WiFi status gagal)
+        fetch("/api/system/ip")
+          .then((r) => r.json())
+          .then((res) => {
+            if (res.success && res.data && res.data.ip) {
+              S.systemIP = res.data.ip;
+              updWifi();
+            }
+          })
+          .catch(() => {});
+        setInterval(() => {
+          fetch("/api/system/ip").then(r=>r.json()).then(res=>{
+            if(res.success && res.data){ S.systemIP = res.data.ip || ""; updWifi(); }
+          }).catch(()=>{});
+        }, 30000);
       });
 
       // === Jam & Tanggal ===
@@ -2724,18 +2740,21 @@
         const el = document.getElementById("hwifi"),
           nm = document.getElementById("hwN"),
           ip = document.getElementById("hwIP");
+        const displayIP = S.wifiIP || S.systemIP;
         if (S.wifiOn) {
           el.classList.remove("off");
           nm.textContent = S.wifiSSID;
-          if (S.wifiIP) {
-            ip.textContent = S.wifiIP;
-            ip.style.display = "block";
-          } else {
-            ip.style.display = "none";
-          }
+        } else if (displayIP) {
+          el.classList.remove("off");
+          nm.textContent = S.wifiSSID || "Terhubung";
         } else {
           el.classList.add("off");
           nm.textContent = "Tidak terhubung";
+        }
+        if (displayIP) {
+          ip.textContent = displayIP;
+          ip.style.display = "block";
+        } else {
           ip.style.display = "none";
         }
       }

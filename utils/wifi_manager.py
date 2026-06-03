@@ -252,8 +252,14 @@ def get_wifi_status() -> dict:
         }
 
     except FileNotFoundError:
-        return {"connected": False, "ssid": "", "ip_address": "", "signal": 0,
-                "error": "nmcli tidak ditemukan."}
+        logger.warning("nmcli tidak ditemukan — fallback ke ip addr untuk status WiFi.")
+        ip = _get_interface_ip(_WIFI_INTERFACE)
+        if not ip:
+            for iface in ["wlan0", "wlan1", "eth0", "eth1", "enp3s0", "wlp2s0", "wlp3s0"]:
+                ip = _get_interface_ip(iface)
+                if ip:
+                    break
+        return {"connected": bool(ip), "ssid": "", "ip_address": ip, "signal": 0, "error": None}
     except Exception as e:
         logger.error("get_wifi_status() error: %s", e)
         return {"connected": False, "ssid": "", "ip_address": "", "signal": 0, "error": str(e)}

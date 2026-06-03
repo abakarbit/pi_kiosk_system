@@ -2285,21 +2285,21 @@
       function expCSV() {
         const checked = [...document.querySelectorAll(".hChk:checked")];
         if (!checked.length) return toast("Pilih data yang akan di-export", "twn");
-        const ids = checked.map((cb) => cb.dataset.id).join(",");
+        const ids = checked.map((cb) => cb.dataset.id).join(";");
         fetch("/api/kalibrasi/export?ids=" + ids)
           .then((r) => r.json())
           .then((res) => {
             if (!res.success) return toast(res.error || "Gagal export", "te");
             const { headers, details } = res.data;
-            let csv = "=== HEADER KALIBRASI ===\n";
-            csv += "ID,Nama Kalibrasi,Tanggal,Jumlah Data\n";
+            let csv = "";
             headers.forEach((h) => {
-              csv += `${h.id},"${h.calibname}","${h.timestamp}",${h.sum}\n`;
-            });
-            csv += "\n=== DETAIL PENGUKURAN ===\n";
-            csv += "ID,Header ID,Tanggal,Red(Hz),Blue(Hz),Clear(Hz),Green(Hz)\n";
-            details.forEach((d) => {
-              csv += `${d.id},${d.header_id},"${d.timestamp}",${d.red},${d.blue},${d.clear},${d.green}\n`;
+              csv += `header\n${h.id},"${h.calibname}","${h.timestamp}",${h.sum}\nDetail\n`;
+              details
+                .filter((d) => d.header_id === h.id)
+                .forEach((d) => {
+                  csv += `${d.id},${d.header_id},"${d.timestamp}",${d.red},${d.blue},${d.clear},${d.green}\n`;
+                });
+              csv += "\n";
             });
             const a = document.createElement("a");
             a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));

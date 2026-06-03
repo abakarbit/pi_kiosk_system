@@ -1883,7 +1883,7 @@
         yBtn.textContent = yesLabel || "Ya, Lanjutkan";
         yBtn.className = "bt " + (yesCls || "");
         _cfCallback = cb;
-        yBtn.onclick = () => { cfClose(); if (_cfCallback) _cfCallback(); };
+        yBtn.onclick = () => { const cb = _cfCallback; cfClose(); if (cb) cb(); };
         document.getElementById("cfMod").classList.add("show");
       }
       function cfClose() {

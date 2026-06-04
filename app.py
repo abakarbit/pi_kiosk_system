@@ -339,8 +339,6 @@ def api_wifi_status():
         }
     """
     result = get_wifi_status()
-    if result["error"]:
-        return err(f"Gagal mengambil status WiFi: {result['error']}")
     result.pop("error", None)
     return ok(result)
 

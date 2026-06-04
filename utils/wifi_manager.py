@@ -207,30 +207,30 @@ def get_wifi_status() -> dict:
     """
     Ambil informasi koneksi WiFi yang sedang aktif.
 
+    Strategi multi-method (tidak pernah raise exception):
+      1. nmcli device wifi         — SSID + signal dari NetworkManager
+      2. iwgetid -r                — SSID fallback tanpa NetworkManager
+      3. ip addr show <interface>  — IP address (selalu dicoba)
+
     Returns:
         dict:
-            'connected'  : bool - True jika terhubung ke WiFi
-            'ssid'       : str  - SSID aktif (kosong jika tidak terhubung)
-            'ip_address' : str  - Alamat IP lokal (kosong jika tidak terhubung)
-            'signal'     : int  - Kekuatan sinyal aktif (0-100)
-            'error'      : str|None
+            'connected'  : bool - True jika ada SSID atau IP address
+            'ssid'       : str  - SSID aktif (kosong jika tidak terdeteksi)
+            'ip_address' : str  - Alamat IP lokal
+            'signal'     : int  - Kekuatan sinyal (0-100)
+            'error'      : None  (selalu None — error ditangani internal)
     """
+    active_ssid   = ""
+    active_signal = 0
+
+    # ── Method 1: nmcli device wifi (gunakan cache, tanpa rescan) ─────────────
     try:
-        # Ambil SSID aktif
         result = subprocess.run(
-            [
-                _NMCLI_PATH, "-t",
-                "-f", "ACTIVE,SSID,SIGNAL",
-                "device", "wifi",
-            ],
+            [_NMCLI_PATH, "-t", "-f", "ACTIVE,SSID,SIGNAL", "device", "wifi"],
             capture_output=True,
             text=True,
-            timeout=10,
+            timeout=8,
         )
-
-        active_ssid   = ""
-        active_signal = 0
-
         if result.returncode == 0:
             for line in result.stdout.strip().splitlines():
                 parts = _parse_nmcli_terse_line(line, 3)
@@ -238,31 +238,47 @@ def get_wifi_status() -> dict:
                     active_ssid   = parts[1].strip()
                     active_signal = int(parts[2]) if parts[2].isdigit() else 0
                     break
-
-        # Ambil IP address interface WiFi
-        ip_address = _get_interface_ip(_WIFI_INTERFACE)
-
-        connected = bool(active_ssid)
-        return {
-            "connected":  connected,
-            "ssid":       active_ssid,
-            "ip_address": ip_address,
-            "signal":     active_signal,
-            "error":      None,
-        }
-
-    except FileNotFoundError:
-        logger.warning("nmcli tidak ditemukan — fallback ke ip addr untuk status WiFi.")
-        ip = _get_interface_ip(_WIFI_INTERFACE)
-        if not ip:
-            for iface in ["wlan0", "wlan1", "eth0", "eth1", "enp3s0", "wlp2s0", "wlp3s0"]:
-                ip = _get_interface_ip(iface)
-                if ip:
-                    break
-        return {"connected": bool(ip), "ssid": "", "ip_address": ip, "signal": 0, "error": None}
     except Exception as e:
-        logger.error("get_wifi_status() error: %s", e)
-        return {"connected": False, "ssid": "", "ip_address": "", "signal": 0, "error": str(e)}
+        logger.debug("get_wifi_status() nmcli method gagal: %s", e)
+
+    # ── Method 2: iwgetid -r (fallback SSID tanpa NetworkManager) ─────────────
+    if not active_ssid:
+        try:
+            r = subprocess.run(
+                ["iwgetid", "-r"],
+                capture_output=True,
+                text=True,
+                timeout=3,
+            )
+            if r.returncode == 0 and r.stdout.strip():
+                active_ssid = r.stdout.strip()
+                logger.debug("get_wifi_status() SSID via iwgetid: %s", active_ssid)
+        except Exception:
+            pass
+
+    # ── Method 3: IP address via ip addr (cepat dan andal) ────────────────────
+    ip_address = _get_interface_ip(_WIFI_INTERFACE)
+    if not ip_address:
+        # Coba interface umum lainnya sebagai fallback
+        for iface in ["wlan1", "eth0", "eth1", "enp3s0", "wlp2s0"]:
+            ip_address = _get_interface_ip(iface)
+            if ip_address:
+                break
+
+    # Dianggap terhubung jika ada SSID atau IP address
+    connected = bool(active_ssid or ip_address)
+
+    logger.debug(
+        "get_wifi_status() → connected=%s ssid='%s' ip='%s'",
+        connected, active_ssid, ip_address,
+    )
+    return {
+        "connected":  connected,
+        "ssid":       active_ssid,
+        "ip_address": ip_address,
+        "signal":     active_signal,
+        "error":      None,
+    }
 
 
 # ─── Helpers Privat ───────────────────────────────────────────────────────────

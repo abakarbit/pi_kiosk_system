@@ -1608,6 +1608,13 @@
               <i class="fas fa-times"></i>
             </button>
           </div>
+          <div id="wConnInfo" style="display:none;padding:7px 12px;background:var(--ok-lt);border-bottom:1px solid #b5d9c2;flex-shrink:0;gap:8px;align-items:center;">
+            <i class="fas fa-check-circle" style="color:var(--ok);font-size:13px;"></i>
+            <div style="display:flex;flex-direction:column;gap:1px;">
+              <span style="font-size:11px;font-weight:600;color:var(--ok);" id="wConnSSID"></span>
+              <span style="font-size:9px;color:var(--ok);opacity:0.8;font-family:'Consolas',monospace;" id="wConnIP"></span>
+            </div>
+          </div>
           <div class="mbo" id="wBody" style="padding: 6px 8px">
             <div class="si" id="wScan">
               <i class="fas fa-spinner"></i><span>Memindai jaringan...</span>
@@ -1787,19 +1794,27 @@
         setInterval(tickClock, 1000);
         readUPS();
         setInterval(readUPS, 30000);
-        // Periksa status WiFi dari backend
-        fetch("/api/wifi/status")
-          .then((r) => r.json())
-          .then((res) => {
-            if (res.success && res.data) {
-              S.wifiOn = res.data.connected;
-              S.wifiSSID = res.data.ssid || "";
-              S.wifiIP = res.data.ip_address || "";
-              updWifi();
-            }
-          })
-          .catch(() => {});
-        // Ambil IP sistem (fallback jika WiFi status gagal)
+        // Periksa status WiFi dari backend dengan retry otomatis
+        (function initWifiStatus(attempt) {
+          fetch("/api/wifi/status")
+            .then((r) => r.json())
+            .then((res) => {
+              if (res.success && res.data) {
+                S.wifiOn = res.data.connected;
+                S.wifiSSID = res.data.ssid || "";
+                S.wifiIP = res.data.ip_address || "";
+                updWifi();
+              }
+              // Jika belum ada IP dan masih ada sisa percobaan, coba lagi
+              if (!S.wifiIP && !S.systemIP && attempt < 4) {
+                setTimeout(() => initWifiStatus(attempt + 1), 4000);
+              }
+            })
+            .catch(() => {
+              if (attempt < 4) setTimeout(() => initWifiStatus(attempt + 1), 4000);
+            });
+        })(1);
+        // Ambil IP sistem (cepat, digunakan sebagai fallback awal)
         fetch("/api/system/ip")
           .then((r) => r.json())
           .then((res) => {
@@ -2437,7 +2452,21 @@
         pwdVis = false;
         shiftOn = false;
         wifiConn = false;
+        updWConnInfo();
         showS1();
+        // Refresh status koneksi aktif setiap kali modal dibuka
+        fetch("/api/wifi/status")
+          .then(r => r.json())
+          .then(res => {
+            if (res.success && res.data) {
+              S.wifiOn = res.data.connected;
+              S.wifiSSID = res.data.ssid || "";
+              S.wifiIP = res.data.ip_address || "";
+              updWifi();
+              updWConnInfo();
+            }
+          })
+          .catch(() => {});
       }
       function clWifi() {
         document.getElementById("wMod").classList.remove("show");
@@ -2718,14 +2747,28 @@
               S.wifiSSID = selSSID;
               S.wifiIP = "";
               updWifi();
-              fetch("/api/wifi/status").then(r=>r.json()).then(st=>{
-                if(st.success && st.data){ S.wifiIP = st.data.ip_address || ""; updWifi(); }
-              }).catch(()=>{});
               saveDB();
               document.getElementById("pDisp").innerHTML =
                 '<span style="color:var(--ok);font-family:Inter,sans-serif;font-size:12px;"><i class="fas fa-check-circle"></i> Terhubung!</span>';
               toast("Berhasil terhubung ke " + selSSID, "ts");
-              setTimeout(clWifi, 1200);
+              setTimeout(clWifi, 2000);
+              // Poll IP dengan retry — beri waktu DHCP assign address
+              (function pollIP(attempt) {
+                setTimeout(() => {
+                  fetch("/api/wifi/status")
+                    .then(r => r.json())
+                    .then(st => {
+                      if (st.success && st.data) {
+                        S.wifiOn = st.data.connected;
+                        S.wifiSSID = st.data.ssid || S.wifiSSID;
+                        S.wifiIP = st.data.ip_address || "";
+                        updWifi();
+                      }
+                      if (!S.wifiIP && attempt < 5) pollIP(attempt + 1);
+                    })
+                    .catch(() => { if (attempt < 5) pollIP(attempt + 1); });
+                }, attempt === 1 ? 2000 : 3000);
+              })(1);
             } else {
               wifiConn = false;
               document.getElementById("osk").classList.remove("dim");
@@ -2763,6 +2806,21 @@
           el.classList.add("off");
           nm.textContent = "Tidak terhubung";
           ip.style.display = "none";
+        }
+      }
+
+      function updWConnInfo() {
+        const el = document.getElementById("wConnInfo");
+        if (!el) return;
+        const displayIP = S.wifiIP || S.systemIP;
+        if (S.wifiOn || displayIP) {
+          el.style.display = "flex";
+          document.getElementById("wConnSSID").textContent =
+            S.wifiSSID ? "Terhubung ke " + S.wifiSSID : "Terhubung";
+          document.getElementById("wConnIP").textContent =
+            displayIP || "Mendapatkan alamat IP...";
+        } else {
+          el.style.display = "none";
         }
       }
 

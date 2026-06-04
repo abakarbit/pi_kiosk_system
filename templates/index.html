@@ -1805,30 +1805,11 @@
           })
           .catch(function() {});
 
-        // Periksa status WiFi — fungsi terpisah agar bisa dipanggil ulang
-        function checkWifiStatus(attempt) {
-          fetch("/api/wifi/status")
-            .then(function(r) { return r.json(); })
-            .then(function(res) {
-              if (res.success && res.data) {
-                S.wifiOn  = res.data.connected;
-                S.wifiSSID = res.data.ssid || "";
-                S.wifiIP   = res.data.ip_address || "";
-                updWifi();
-              }
-              // Retry hanya jika belum connected (NetworkManager mungkin belum siap)
-              if (!S.wifiOn && attempt < 5) {
-                setTimeout(function() { checkWifiStatus(attempt + 1); }, 3000);
-              }
-            })
-            .catch(function() {
-              if (attempt < 5) setTimeout(function() { checkWifiStatus(attempt + 1); }, 3000);
-            });
-        }
-        checkWifiStatus(1);
+        // Panggil segera saat halaman pertama tampil
+        checkWifiStatus();
 
-        // Poll periodik setiap 30 detik
-        setInterval(function() { checkWifiStatus(0); }, 30000);
+        // Refresh status WiFi setiap 1 menit
+        setInterval(checkWifiStatus, 60000);
       });
 
       
@@ -2436,6 +2417,21 @@
       //  WiFi & ON-SCREEN KEYBOARD
       // ============================================================
       let scannedNets = []; // Hasil scan API: { ssid, signal, security, in_use }
+
+      // checkWifiStatus — top-level agar tersedia sebelum DOMContentLoaded selesai
+      function checkWifiStatus() {
+        fetch("/api/wifi/status")
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success && res.data) {
+              S.wifiOn   = res.data.connected;
+              S.wifiSSID = res.data.ssid || "";
+              S.wifiIP   = res.data.ip_address || "";
+              updWifi();
+            }
+          })
+          .catch(function() {});
+      }
 
       function openWifi() {
         document.getElementById("wMod").classList.add("show");

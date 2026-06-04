@@ -1794,50 +1794,41 @@
         setInterval(tickClock, 1000);
         readUPS();
         setInterval(readUPS, 30000);
-        // Periksa status WiFi dari backend dengan retry otomatis
-        (function initWifiStatus(attempt) {
-          fetch("/api/wifi/status")
-            .then((r) => r.json())
-            .then((res) => {
-              if (res.success && res.data) {
-                S.wifiOn = res.data.connected;
-                S.wifiSSID = res.data.ssid || "";
-                S.wifiIP = res.data.ip_address || "";
-                updWifi();
-              }
-              // Jika belum ada IP dan masih ada sisa percobaan, coba lagi
-              if (!S.wifiIP && !S.systemIP && attempt < 4) {
-                setTimeout(() => initWifiStatus(attempt + 1), 4000);
-              }
-            })
-            .catch(() => {
-              if (attempt < 4) setTimeout(() => initWifiStatus(attempt + 1), 4000);
-            });
-        })(1);
-        // Ambil IP sistem (cepat, digunakan sebagai fallback awal)
+        // Ambil IP sistem (cepat, sebagai fallback visual awal)
         fetch("/api/system/ip")
-          .then((r) => r.json())
-          .then((res) => {
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
             if (res.success && res.data && res.data.ip) {
               S.systemIP = res.data.ip;
               updWifi();
             }
           })
-          .catch(() => {});
-        function pollWifiStatus() {
+          .catch(function() {});
+
+        // Periksa status WiFi — fungsi terpisah agar bisa dipanggil ulang
+        function checkWifiStatus(attempt) {
           fetch("/api/wifi/status")
-            .then((r) => r.json())
-            .then((res) => {
+            .then(function(r) { return r.json(); })
+            .then(function(res) {
               if (res.success && res.data) {
-                S.wifiOn = res.data.connected;
+                S.wifiOn  = res.data.connected;
                 S.wifiSSID = res.data.ssid || "";
-                S.wifiIP = res.data.ip_address || "";
+                S.wifiIP   = res.data.ip_address || "";
                 updWifi();
               }
+              // Retry hanya jika belum connected (NetworkManager mungkin belum siap)
+              if (!S.wifiOn && attempt < 5) {
+                setTimeout(function() { checkWifiStatus(attempt + 1); }, 3000);
+              }
             })
-            .catch(() => {});
+            .catch(function() {
+              if (attempt < 5) setTimeout(function() { checkWifiStatus(attempt + 1); }, 3000);
+            });
         }
-        setInterval(pollWifiStatus, 30000);
+        checkWifiStatus(1);
+
+        // Poll periodik setiap 30 detik
+        setInterval(function() { checkWifiStatus(0); }, 30000);
       });
 
       // === Jam & Tanggal ===

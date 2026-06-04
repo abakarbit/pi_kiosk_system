@@ -1809,11 +1809,20 @@
             }
           })
           .catch(() => {});
-        setInterval(() => {
-          fetch("/api/system/ip").then(r=>r.json()).then(res=>{
-            if(res.success && res.data){ S.systemIP = res.data.ip || ""; updWifi(); }
-          }).catch(()=>{});
-        }, 30000);
+        function pollWifiStatus() {
+          fetch("/api/wifi/status")
+            .then((r) => r.json())
+            .then((res) => {
+              if (res.success && res.data) {
+                S.wifiOn = res.data.connected;
+                S.wifiSSID = res.data.ssid || "";
+                S.wifiIP = res.data.ip_address || "";
+                updWifi();
+              }
+            })
+            .catch(() => {});
+        }
+        setInterval(pollWifiStatus, 30000);
       });
 
       // === Jam & Tanggal ===
@@ -2741,20 +2750,18 @@
           nm = document.getElementById("hwN"),
           ip = document.getElementById("hwIP");
         const displayIP = S.wifiIP || S.systemIP;
-        if (S.wifiOn) {
+        if (S.wifiOn || displayIP) {
           el.classList.remove("off");
-          nm.textContent = S.wifiSSID;
-        } else if (displayIP) {
-          el.classList.remove("off");
-          nm.textContent = S.wifiSSID || "Terhubung";
+          nm.textContent = "Terhubung";
+          if (displayIP) {
+            ip.textContent = (S.wifiSSID ? S.wifiSSID + "  " : "") + displayIP;
+            ip.style.display = "block";
+          } else {
+            ip.style.display = "none";
+          }
         } else {
           el.classList.add("off");
           nm.textContent = "Tidak terhubung";
-        }
-        if (displayIP) {
-          ip.textContent = displayIP;
-          ip.style.display = "block";
-        } else {
           ip.style.display = "none";
         }
       }

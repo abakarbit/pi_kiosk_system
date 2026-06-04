@@ -1831,7 +1831,7 @@
         setInterval(function() { checkWifiStatus(0); }, 30000);
       });
 
-      checkWifiStatus(0);
+      
       // === Jam & Tanggal ===
       function tickClock() {
         const d = new Date(Date.now() + timeOffset);
@@ -2789,7 +2789,7 @@
           el.classList.remove("off");
           nm.textContent = "Terhubung";
           if (displayIP) {
-            ip.textContent = (S.wifiSSID ? S.wifiSSID + "  " : "") + displayIP;
+            ip.textContent = (S.wifiSSID ? S.wifiSSID + "  " : "");
             ip.style.display = "block";
           } else {
             ip.style.display = "none";

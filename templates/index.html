@@ -1313,7 +1313,7 @@
       }
     </style>
   </head>
-  <body onload="checkWifiStatus()">
+  <body>
     <!-- HEADER -->
     <header class="hdr" role="banner">
       <div class="hdr-l">
@@ -2051,22 +2051,30 @@
       }
 
       function renderLat() {
-        const w = document.getElementById("lSc"),
-          e = document.getElementById("lEmpty"),
-          d = S.latest.slice(-15).reverse();
+        const w = document.getElementById("lSc");
+        let e = document.getElementById("lEmpty");
+        const d = S.latest.slice(-15).reverse();
         if (!d.length) {
           w.innerHTML = "";
-          w.appendChild(e);
+          if (!e) {
+            e = document.createElement("div");
+            e.id = "lEmpty";
+            e.className = "eb";
+            e.innerHTML = '<i class="fas fa-inbox"></i><span>Belum ada data</span>';
+          }
           e.style.display = "flex";
+          w.appendChild(e);
           return;
         }
-        e.style.display = "none";
+        if (e) e.style.display = "none";
         w.innerHTML = d
           .map(
             (m) =>
               `<div class="li"><span class="li-t">${m.time}</span><span class="li-h">${m.hex}</span><div class="li-v"><span class="cr">R:${m.cal.r}</span><span class="cg">G:${m.cal.g}</span><span class="cbl">B:${m.cal.b}</span></div></div>`,
           )
           .join("");
+        // Preserve lEmpty in DOM (hidden) agar getElementById tetap bisa menemukannya
+        if (e) { e.style.display = "none"; w.appendChild(e); }
       }
 
       // ============================================================
@@ -2093,6 +2101,7 @@
         document.getElementById("dsV").textContent = v.toFixed(1) + "V";
         document.getElementById("dsA").textContent = a.toFixed(2) + "A";
         document.getElementById("dsW").textContent = w.toFixed(1) + "W";
+        document.getElementById("dsP").textContent = pct + "%";
       }
       function updBat(p) {
         const f = document.getElementById("hbatF"),
@@ -2362,7 +2371,7 @@
         document.getElementById("dtH").value = d.getHours();
         document.getElementById("dtM").value = d.getMinutes();
         document.getElementById("dtS").value = d.getSeconds();
-        //document.getElementById("dtMod").classList.add("show");
+        document.getElementById("dtMod").classList.add("show");
       }
       function clDtMod() {
         document.getElementById("dtMod").classList.remove("show");
@@ -2785,7 +2794,7 @@
           el.classList.remove("off");
           nm.textContent = "Terhubung";
           if (displayIP) {
-            ip.textContent = (S.wifiSSID ? S.wifiSSID + "  " : "");
+            ip.textContent = (S.wifiSSID ? S.wifiSSID + "  " : "") + displayIP;
             ip.style.display = "block";
           } else {
             ip.style.display = "none";
@@ -2904,7 +2913,7 @@
           if (d.cp) S.cp = d.cp;
           if (d.ch) S.calibH = d.ch;
           if (d.lt) S.latest = d.lt;
-          if (d.ul) S.upsLogs = d.upsLogs;
+          if (Array.isArray(d.ul)) S.upsLogs = d.ul;
           if (d.wo !== undefined) S.wifiOn = d.wo;
           if (d.ws) S.wifiSSID = d.ws;
           if (d.to) timeOffset = d.to;

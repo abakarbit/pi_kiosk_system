@@ -271,7 +271,7 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
                 "nmcli",
                 "device",
                 "disconnect",
-                WIFI_INTERFACE,
+                _WIFI_INTERFACE,
             ],
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
@@ -284,7 +284,7 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
             "connect",
             ssid,
             "ifname",
-            WIFI_INTERFACE,
+            _WIFI_INTERFACE,
         ]
 
         if password:

@@ -164,46 +164,26 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
     # Catatan: Untuk jaringan WPA/WPA2, nmcli kadang butuh key-mgmt eksplisit
     # agar tidak gagal dengan "property is missing" error.
     # Referensi: nmcli(1) — device wifi connect
-    cmd = [
-        _NMCLI_PATH,
-        "device", "wifi", "connect", ssid,
-        "ifname", _WIFI_INTERFACE,
-    ]
+    # cmd = [
+    #     _NMCLI_PATH,
+    #     "device", "wifi", "connect", ssid,
+    #     "ifname", _WIFI_INTERFACE,
+    # ]
 
     # Tambahkan password hanya jika ada (jangan log password-nya)
-    if password:
-        cmd += [
-            "password", password,
-            "wifi-sec.key-mgmt", "wpa-psk",
-        ]
+    # if password:
+    #     cmd += [
+    #         "password", password,
+    #         "wifi-sec.key-mgmt", "wpa-psk",
+    #     ]
 
-    logger.info("Mencoba terhubung ke WiFi SSID: '%s' (password: %s)",
-                ssid, "***" if password else "(open)")
+    # logger.info("Mencoba terhubung ke WiFi SSID: '%s' (password: %s)",
+    #             ssid, "***" if password else "(open)")
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=_CONNECT_TIMEOUT_SEC,
-        )
+        subprocess.run(['nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password])
+        return {"ssid": ssid, "error": None}
 
-        if result.returncode == 0:
-            logger.info("Berhasil terhubung ke '%s'.", ssid)
-            return {"ssid": ssid, "error": None}
-        else:
-            # Bersihkan pesan error dari output nmcli
-            err_msg = result.stderr.strip() or result.stdout.strip()
-            # Hapus kemungkinan password dari pesan error sebelum di-log
-            err_msg = _sanitize_error_message(err_msg, password)
-            logger.error("Gagal terhubung ke '%s': %s", ssid, err_msg)
-            return {"ssid": ssid, "error": err_msg}
-
-    except subprocess.TimeoutExpired:
-        logger.error("Koneksi ke '%s' timeout setelah %ds.", ssid, _CONNECT_TIMEOUT_SEC)
-        return {"ssid": ssid, "error": f"Koneksi timeout ({_CONNECT_TIMEOUT_SEC}s)."}
-    except FileNotFoundError:
-        return {"ssid": ssid, "error": "nmcli tidak ditemukan. Install NetworkManager."}
     except Exception as e:
         logger.error("connect_wifi() unexpected error (ssid='%s'): %s", ssid, e)
         return {"ssid": ssid, "error": str(e)}

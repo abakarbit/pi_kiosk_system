@@ -299,7 +299,7 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
             cmd,
             capture_output=True,
             text=True,
-            timeout=CONNECT_TIMEOUT,
+            timeout=_CONNECT_TIMEOUT_SEC,
         )
 
         if result.returncode != 0:
@@ -359,7 +359,7 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
             "success": False,
             "ssid": ssid,
             "ip": "",
-            "error": f"Timeout {CONNECT_TIMEOUT} detik",
+            "error": f"Timeout {_CONNECT_TIMEOUT_SEC} detik",
         }
 
     except FileNotFoundError:

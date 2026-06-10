@@ -27,7 +27,7 @@ _NMCLI_PATH          = "nmcli"     # Path ke binary nmcli
 _WIFI_INTERFACE      = "wlan0"     # ← Sesuaikan nama interface WiFi Anda
                                    #   Cek dengan: ip link show | grep wlan
 _SCAN_TIMEOUT_SEC    = 20          # Timeout scan WiFi (detik)
-_CONNECT_TIMEOUT_SEC = 5          # Timeout proses koneksi (detik)
+_CONNECT_TIMEOUT_SEC = 30          # Timeout proses koneksi (detik)
 
 
 # ─── Parser Internal ──────────────────────────────────────────────────────────
@@ -142,159 +142,45 @@ def scan_wifi() -> dict:
         return {"networks": [], "error": str(e)}
 
 
-
-def _sanitize_error_message(message: str, password: str) -> str:
-    if not message:
-        return ""
-
-    if password:
-        message = message.replace(password, "********")
-
-    return message
-
-
-def get_current_ssid():
-    """
-    Mengembalikan SSID yang sedang aktif.
-    """
-
-    try:
-        result = subprocess.run(
-            [
-                "nmcli",
-                "-t",
-                "-f",
-                "ACTIVE,SSID",
-                "device",
-                "wifi",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        for line in result.stdout.splitlines():
-            if line.startswith("yes:"):
-                return line.split(":", 1)[1]
-
-    except Exception:
-        pass
-
-    return None
-
-
-def get_ip_address():
-    """
-    Mengambil IP Address wlan0.
-    """
-
-    try:
-
-        result = subprocess.run(
-            [
-                "nmcli",
-                "-g",
-                "IP4.ADDRESS",
-                "device",
-                "show",
-                _WIFI_INTERFACE,
-            ],
-            capture_output=True,
-            text=True,
-            timeout=5,
-        )
-
-        ip = result.stdout.strip()
-
-        if ip:
-            return ip.split("/")[0]
-
-    except Exception:
-        pass
-
-    return ""
-
-
 def connect_wifi(ssid: str, password: str = "") -> dict:
     """
-    Connect WiFi Raspberry Pi Kiosk.
+    Hubungkan Raspberry Pi ke jaringan WiFi menggunakan nmcli.
 
-    Return:
-    {
-        "success": bool,
-        "ssid": str,
-        "ip": str,
-        "error": str | None
-    }
+    !! KEAMANAN: Password TIDAK pernah dicatat di log. !!
+
+    Args:
+        ssid    : Nama jaringan WiFi target.
+        password: Password jaringan (kosongkan untuk jaringan open/terbuka).
+
+    Returns:
+        dict:
+            'ssid'  : str  - SSID yang dihubungi
+            'error' : str|None
     """
+    if not ssid:
+        return {"ssid": "", "error": "SSID tidak boleh kosong."}
 
-    if not ssid or not ssid.strip():
-        return {
-            "success": False,
-            "ssid": "",
-            "ip": "",
-            "error": "SSID tidak boleh kosong",
-        }
+    # Susun perintah nmcli
+    # Catatan: Untuk jaringan WPA/WPA2, nmcli kadang butuh key-mgmt eksplisit
+    # agar tidak gagal dengan "property is missing" error.
+    # Referensi: nmcli(1) — device wifi connect
+    cmd = [
+        _NMCLI_PATH,
+        "device", "wifi", "connect", ssid,
+        "ifname", _WIFI_INTERFACE,
+    ]
 
-    ssid = ssid.strip()
-
-    current = get_current_ssid()
-
-    if current == ssid:
-
-        ip = get_ip_address()
-
-        logger.info(
-            "Sudah terhubung ke '%s' (%s)",
-            ssid,
-            ip,
-        )
-
-        return {
-            "success": True,
-            "ssid": ssid,
-            "ip": ip,
-            "error": None,
-        }
-
-    logger.info(
-        "Menghubungkan ke WiFi '%s' (%s)",
-        ssid,
-        "***" if password else "OPEN",
-    )
-
-    try:
-
-        # Putuskan koneksi sebelumnya
-        subprocess.run(
-            [
-                "nmcli",
-                "device",
-                "disconnect",
-                _WIFI_INTERFACE,
-            ],
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-
-        cmd = [
-            "nmcli",
-            "device",
-            "wifi",
-            "connect",
-            ssid,
-            "ifname",
-            _WIFI_INTERFACE,
+    # Tambahkan password hanya jika ada (jangan log password-nya)
+    if password:
+        cmd += [
+            "password", password,
+            "wifi-sec.key-mgmt", "wpa-psk",
         ]
 
-        if password:
-            cmd.extend(
-                [
-                    "password",
-                    password,
-                ]
-            )
+    logger.info("Mencoba terhubung ke WiFi SSID: '%s' (password: %s)",
+                ssid, "***" if password else "(open)")
 
+    try:
         result = subprocess.run(
             cmd,
             capture_output=True,
@@ -302,88 +188,25 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
             timeout=_CONNECT_TIMEOUT_SEC,
         )
 
-        if result.returncode != 0:
-
-            error = (
-                result.stderr.strip()
-                or result.stdout.strip()
-                or "Unknown error"
-            )
-
-            error = _sanitize_error_message(error, password)
-
-            logger.error(error)
-
-            return {
-                "success": False,
-                "ssid": ssid,
-                "ip": "",
-                "error": error,
-            }
-
-        # Tunggu sampai mendapatkan IP Address
-
-        ip = ""
-
-        for _ in range(15):
-
-            time.sleep(1)
-
-            current = get_current_ssid()
-
-            if current == ssid:
-
-                ip = get_ip_address()
-
-                if ip:
-                    break
-
-        logger.info(
-            "Berhasil connect ke '%s' (%s)",
-            ssid,
-            ip,
-        )
-
-        return {
-            "success": True,
-            "ssid": ssid,
-            "ip": ip,
-            "error": None,
-        }
+        if result.returncode == 0:
+            logger.info("Berhasil terhubung ke '%s'.", ssid)
+            return {"ssid": ssid, "error": None}
+        else:
+            # Bersihkan pesan error dari output nmcli
+            err_msg = result.stderr.strip() or result.stdout.strip()
+            # Hapus kemungkinan password dari pesan error sebelum di-log
+            err_msg = _sanitize_error_message(err_msg, password)
+            logger.error("Gagal terhubung ke '%s': %s", ssid, err_msg)
+            return {"ssid": ssid, "error": err_msg}
 
     except subprocess.TimeoutExpired:
-
-        logger.error("Timeout saat connect WiFi")
-
-        return {
-            "success": False,
-            "ssid": ssid,
-            "ip": "",
-            "error": f"Timeout {_CONNECT_TIMEOUT_SEC} detik",
-        }
-
+        logger.error("Koneksi ke '%s' timeout setelah %ds.", ssid, _CONNECT_TIMEOUT_SEC)
+        return {"ssid": ssid, "error": f"Koneksi timeout ({_CONNECT_TIMEOUT_SEC}s)."}
     except FileNotFoundError:
-
-        logger.error("nmcli tidak ditemukan")
-
-        return {
-            "success": False,
-            "ssid": ssid,
-            "ip": "",
-            "error": "NetworkManager (nmcli) tidak ditemukan",
-        }
-
+        return {"ssid": ssid, "error": "nmcli tidak ditemukan. Install NetworkManager."}
     except Exception as e:
-
-        logger.exception(e)
-
-        return {
-            "success": False,
-            "ssid": ssid,
-            "ip": "",
-            "error": str(e),
-        }
-
+        logger.error("connect_wifi() unexpected error (ssid='%s'): %s", ssid, e)
+        return {"ssid": ssid, "error": str(e)}
 
 
 def get_wifi_status() -> dict:

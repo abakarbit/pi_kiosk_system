@@ -2486,26 +2486,26 @@
         document.getElementById("wS2").classList.remove("on");
         document.getElementById("wScan").style.display = "flex";
         document.getElementById("wList").style.display = "none";
-        fetch("/api/wifi/scan")
-          .then((r) => r.json())
-          .then((res) => {
-            document.getElementById("wScan").style.display = "none";
-            if (res.success) {
-              scannedNets = res.data || [];
-            } else {
-              scannedNets = [];
-              toast(res.error || "Gagal scan WiFi", "te");
-            }
-            renderWL();
-            document.getElementById("wList").style.display = "block";
-          })
-          .catch(() => {
-            document.getElementById("wScan").style.display = "none";
-            scannedNets = [];
-            renderWL();
-            document.getElementById("wList").style.display = "block";
-            toast("Gagal scan WiFi", "te");
-          });
+        // fetch("/api/wifi/scan")
+        //   .then((r) => r.json())
+        //   .then((res) => {
+        //     document.getElementById("wScan").style.display = "none";
+        //     if (res.success) {
+        //       scannedNets = res.data || [];
+        //     } else {
+        //       scannedNets = [];
+        //       toast(res.error || "Gagal scan WiFi", "te");
+        //     }
+        //     renderWL();
+        //     document.getElementById("wList").style.display = "block";
+        //   })
+        //   .catch(() => {
+        //     document.getElementById("wScan").style.display = "none";
+        //     scannedNets = [];
+        //     renderWL();
+        //     document.getElementById("wList").style.display = "block";
+        //     toast("Gagal scan WiFi", "te");
+        //   });
       }
       function showS2() {
         document.getElementById("wS1").classList.add("off");

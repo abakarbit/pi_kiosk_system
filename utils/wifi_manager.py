@@ -197,7 +197,7 @@ def get_ip_address():
                 "IP4.ADDRESS",
                 "device",
                 "show",
-                WIFI_INTERFACE,
+                _WIFI_INTERFACE,
             ],
             capture_output=True,
             text=True,
@@ -385,7 +385,7 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
         }
 
 
-        
+
 def get_wifi_status() -> dict:
     """
     Ambil informasi koneksi WiFi yang sedang aktif.

@@ -1865,6 +1865,11 @@
       }
 
       // === Utilitas ===
+      function escHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+      }
       function fT(d) {
         return d.toLocaleTimeString("id-ID", {
           hour: "2-digit",
@@ -2087,27 +2092,27 @@
       //  UPS BATERAI
       // ============================================================
       function readUPS() {
-        const base =
-          11.7 +
-          0.5 * Math.sin(Date.now() / 9e4) +
-          (Math.random() - 0.5) * 0.08;
-        const v = cl(parseFloat(base.toFixed(2)), 10.8, 12.6);
-        const a = cl(
-          parseFloat((0.25 + Math.random() * 0.45).toFixed(2)),
-          0,
-          3,
-        );
-        const w = parseFloat((v * a).toFixed(2));
-        const pct = cl(Math.round(((v - 10.8) / 1.8) * 100), 0, 100);
-        S.ups = { v, a, w, pct };
-        S.upsLogs.push({ ts: new Date().toISOString(), v, a, w, pct });
-        if (S.upsLogs.length > 1000) S.upsLogs = S.upsLogs.slice(-1000);
-        saveDB();
-        updBat(pct);
-        document.getElementById("dsV").textContent = v.toFixed(1) + "V";
-        document.getElementById("dsA").textContent = a.toFixed(2) + "A";
-        document.getElementById("dsW").textContent = w.toFixed(1) + "W";
-        document.getElementById("dsP").textContent = pct + "%";
+        // const base =
+        //   11.7 +
+        //   0.5 * Math.sin(Date.now() / 9e4) +
+        //   (Math.random() - 0.5) * 0.08;
+        // const v = cl(parseFloat(base.toFixed(2)), 10.8, 12.6);
+        // const a = cl(
+        //   parseFloat((0.25 + Math.random() * 0.45).toFixed(2)),
+        //   0,
+        //   3,
+        // );
+        // const w = parseFloat((v * a).toFixed(2));
+        // const pct = cl(Math.round(((v - 10.8) / 1.8) * 100), 0, 100);
+        // S.ups = { v, a, w, pct };
+        // S.upsLogs.push({ ts: new Date().toISOString(), v, a, w, pct });
+        // if (S.upsLogs.length > 1000) S.upsLogs = S.upsLogs.slice(-1000);
+        // saveDB();
+        // updBat(pct);
+        // document.getElementById("dsV").textContent = v.toFixed(1) + "V";
+        // document.getElementById("dsA").textContent = a.toFixed(2) + "A";
+        // document.getElementById("dsW").textContent = w.toFixed(1) + "W";
+        // document.getElementById("dsP").textContent = pct + "%";
       }
       function updBat(p) {
         const f = document.getElementById("hbatF"),

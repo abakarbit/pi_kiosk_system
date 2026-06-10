@@ -164,30 +164,25 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
     # Catatan: Untuk jaringan WPA/WPA2, nmcli kadang butuh key-mgmt eksplisit
     # agar tidak gagal dengan "property is missing" error.
     # Referensi: nmcli(1) — device wifi connect
-    cmd = [
-        _NMCLI_PATH,
-        "device", "wifi", "connect", ssid,
-        "ifname", _WIFI_INTERFACE,
-    ]
+    # cmd = [
+    #     _NMCLI_PATH,
+    #     "device", "wifi", "connect", ssid,
+    #     "ifname", _WIFI_INTERFACE,
+    # ]
 
-    # Tambahkan password hanya jika ada (jangan log password-nya)
-    if password:
-        cmd += [
-            "password", password,
-            "wifi-sec.key-mgmt", "wpa-psk",
-        ]
+    # # Tambahkan password hanya jika ada (jangan log password-nya)
+    # if password:
+    #     cmd += [
+    #         "password", password,
+    #         "wifi-sec.key-mgmt", "wpa-psk",
+    #     ]
 
     logger.info("Mencoba terhubung ke WiFi SSID: '%s' (password: %s)",
                 ssid, "***" if password else "(open)")
 
     try:
-        result = subprocess.run(
-            cmd,
-            capture_output=True,
-            text=True,
-            timeout=_CONNECT_TIMEOUT_SEC,
-        )
-
+        result = subprocess.run(['nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password])
+        
         if result.returncode == 0:
             logger.info("Berhasil terhubung ke '%s'.", ssid)
             return {"ssid": ssid, "error": None}

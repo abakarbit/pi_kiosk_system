@@ -161,6 +161,9 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
         return {"ssid": "", "error": "SSID tidak boleh kosong."}
 
     # Susun perintah nmcli
+    # Catatan: Untuk jaringan WPA/WPA2, nmcli kadang butuh key-mgmt eksplisit
+    # agar tidak gagal dengan "property is missing" error.
+    # Referensi: nmcli(1) — device wifi connect
     cmd = [
         _NMCLI_PATH,
         "device", "wifi", "connect", ssid,
@@ -169,7 +172,10 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
 
     # Tambahkan password hanya jika ada (jangan log password-nya)
     if password:
-        cmd += ["password", password]
+        cmd += [
+            "password", password,
+            "wifi-sec.key-mgmt", "wpa-psk",
+        ]
 
     logger.info("Mencoba terhubung ke WiFi SSID: '%s' (password: %s)",
                 ssid, "***" if password else "(open)")

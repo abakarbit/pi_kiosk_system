@@ -1772,6 +1772,7 @@
         wifiOn: false,
         wifiSSID: "",
         wifiIP: "",
+        wifiSignal: 0,
         systemIP: "",
         upsLogs: [],
       };
@@ -1805,8 +1806,13 @@
           })
           .catch(function() {});
 
-        // Panggil segera saat halaman pertama tampil
-        checkWifiStatus();
+        // Panggil segera saat halaman pertama tampil — deteksi WiFi yang sudah terhubung
+        checkWifiStatus().then(function() {
+          // Jika sudah terhubung, update header langsung
+          if (S.wifiOn || S.wifiIP) {
+            document.getElementById("hwifi").classList.remove("off");
+          }
+        });
 
         // Refresh status WiFi setiap 1 menit
         setInterval(checkWifiStatus, 60000);
@@ -2427,19 +2433,31 @@
       // ============================================================
       let scannedNets = []; // Hasil scan API: { ssid, signal, security, in_use }
 
-      // checkWifiStatus — top-level agar tersedia sebelum DOMContentLoaded selesai
+      // checkWifiStatus — mendeteksi status WiFi dari backend
+      // Backend API: GET /api/wifi/status → { connected, ssid, ip_address, signal }
       function checkWifiStatus() {
-        fetch("/api/wifi/status")
+        return fetch("/api/wifi/status")
           .then(function(r) { return r.json(); })
           .then(function(res) {
             if (res.success && res.data) {
-              S.wifiOn   = res.data.connected;
-              S.wifiSSID = res.data.ssid || "";
-              S.wifiIP   = res.data.ip_address || "";
-              updWifi();
+              S.wifiOn    = res.data.connected;
+              S.wifiSSID  = res.data.ssid || "";
+              S.wifiIP    = res.data.ip_address || "";
+              S.wifiSignal = res.data.signal || 0;
+            } else {
+              S.wifiOn    = false;
+              S.wifiSSID  = "";
+              S.wifiIP    = "";
+              S.wifiSignal = 0;
             }
+            updWifi();
+            updWConnInfo();
           })
-          .catch(function() {});
+          .catch(function() {
+            // Jika API error, tetap update UI
+            updWifi();
+            updWConnInfo();
+          });
       }
 
       function openWifi() {
@@ -2449,21 +2467,10 @@
         pwdVis = false;
         shiftOn = false;
         wifiConn = false;
-        updWConnInfo();
-        showS1();
-        // Refresh status koneksi aktif setiap kali modal dibuka
-        fetch("/api/wifi/status")
-          .then(r => r.json())
-          .then(res => {
-            if (res.success && res.data) {
-              S.wifiOn = res.data.connected;
-              S.wifiSSID = res.data.ssid || "";
-              S.wifiIP = res.data.ip_address || "";
-              updWifi();
-              updWConnInfo();
-            }
-          })
-          .catch(() => {});
+        checkWifiStatus().then(function() {
+          updWConnInfo();
+          showS1();
+        });
       }
       function clWifi() {
         document.getElementById("wMod").classList.remove("show");
@@ -2516,20 +2523,22 @@
           return;
         }
         list.innerHTML = scannedNets
-          .map((n) => {
+          .map((n, idx) => {
             const ic = n.in_use || (S.wifiOn && S.wifiSSID === n.ssid);
             const locked =
               n.security && n.security !== "Open" && n.security !== "--";
             const op = n.signal > 66 ? "1" : n.signal > 33 ? "0.65" : "0.35";
             let c = "wi";
             if (ic) c += " conn";
-            const ssidSafe = n.ssid.replace(/\\/g, "\\\\").replace(/'/g, "\\'");
-            return `<div class="${c}" onclick="pickW('${ssidSafe}',${locked})"><i class="fas fa-wifi ws" style="opacity:${op}"></i><span class="wn">${n.ssid}</span>${locked ? '<i class="fas fa-lock wl"></i>' : '<i class="fas fa-lock-open wl" style="opacity:.35"></i>'}${ic ? '<span class="wbdg">Terhubung</span>' : ""}</div>`;
+            const safeSsid = escHtml(n.ssid);
+            return `<div class="${c}" data-ssid="${safeSsid}" data-locked="${locked}" onclick="pickW(this)"><i class="fas fa-wifi ws" style="opacity:${op}"></i><span class="wn">${safeSsid}</span>${locked ? '<i class="fas fa-lock wl"></i>' : '<i class="fas fa-lock-open wl" style="opacity:.35"></i>'}${ic ? '<span class="wbdg">Terhubung</span>' : ""}</div>`;
           })
           .join("");
       }
 
-      function pickW(ssid, locked) {
+      function pickW(el) {
+        const ssid   = el.dataset.ssid;
+        const locked = el.dataset.locked === 'true';
         const net = scannedNets.find((n) => n.ssid === ssid);
         if ((net && net.in_use) || S.wifiSSID === ssid) {
           toast("Sudah terhubung ke " + ssid, "ti");
@@ -2620,7 +2629,8 @@
             { ch: "h" },
             { ch: "j" },
             { ch: "k" },
-            { ch: "l", cls: "kdl", icon: "fa-delete-left" },
+            { ch: "l" },
+            { ch: "'", cls: "kdl", icon: "fa-delete-left" },
           ],
           [
             { ch: "SHIFT", cls: "ksh" },
@@ -2638,8 +2648,11 @@
             { ch: "-" },
             { ch: "_" },
             { ch: "." },
+            { ch: "," },
+            { ch: ":" },
+            { ch: ";" },
             { ch: "!" },
-            { ch: "&" },
+            { ch: "?" },
             { ch: "SPASI", cls: "ksp" },
             {
               ch: "HUBUNGKAN",

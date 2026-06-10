@@ -2768,22 +2768,22 @@
               toast("Berhasil terhubung ke " + selSSID, "ts");
               setTimeout(clWifi, 2000);
               // Poll IP dengan retry — beri waktu DHCP assign address
-              (function pollIP(attempt) {
-                setTimeout(() => {
-                  fetch("/api/wifi/status")
-                    .then(r => r.json())
-                    .then(st => {
-                      if (st.success && st.data) {
-                        S.wifiOn = st.data.connected;
-                        S.wifiSSID = st.data.ssid || S.wifiSSID;
-                        S.wifiIP = st.data.ip_address || "";
-                        updWifi();
-                      }
-                      if (!S.wifiIP && attempt < 5) pollIP(attempt + 1);
-                    })
-                    .catch(() => { if (attempt < 5) pollIP(attempt + 1); });
-                }, attempt === 1 ? 2000 : 3000);
-              })(1);
+              // (function pollIP(attempt) {
+              //   setTimeout(() => {
+              //     fetch("/api/wifi/status")
+              //       .then(r => r.json())
+              //       .then(st => {
+              //         if (st.success && st.data) {
+              //           S.wifiOn = st.data.connected;
+              //           S.wifiSSID = st.data.ssid || S.wifiSSID;
+              //           S.wifiIP = st.data.ip_address || "";
+              //           updWifi();
+              //         }
+              //         if (!S.wifiIP && attempt < 5) pollIP(attempt + 1);
+              //       })
+              //       .catch(() => { if (attempt < 5) pollIP(attempt + 1); });
+              //   }, attempt === 1 ? 2000 : 3000);
+              // })(1);
             } else {
               wifiConn = false;
               document.getElementById("osk").classList.remove("dim");

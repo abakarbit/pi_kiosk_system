@@ -27,7 +27,7 @@ _NMCLI_PATH          = "nmcli"     # Path ke binary nmcli
 _WIFI_INTERFACE      = "wlan0"     # ← Sesuaikan nama interface WiFi Anda
                                    #   Cek dengan: ip link show | grep wlan
 _SCAN_TIMEOUT_SEC    = 20          # Timeout scan WiFi (detik)
-_CONNECT_TIMEOUT_SEC = 30          # Timeout proses koneksi (detik)
+_CONNECT_TIMEOUT_SEC = 5          # Timeout proses koneksi (detik)
 
 
 # ─── Parser Internal ──────────────────────────────────────────────────────────

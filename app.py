@@ -91,7 +91,7 @@ def api_kalibrasi_pengukuran():
         return err("Gagal membaca sensor warna. Pastikan sensor terhubung dengan benar.")
     try:
         rows = query_db(
-            "SELECT * FROM detail_calibrations WHERE is_save=0 ORDER BY id ASC"
+            "SELECT * FROM detail_calibrations WHERE is_save=0 ORDER BY id DESC"
         )
         return ok([dict(r) for r in rows], message="Pengukuran berhasil ditambahkan.")
     except Exception as e:

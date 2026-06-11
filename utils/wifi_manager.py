@@ -27,7 +27,7 @@ _NMCLI_PATH          = "nmcli"     # Path ke binary nmcli
 _WIFI_INTERFACE      = "wlan0"     # ← Sesuaikan nama interface WiFi Anda
                                    #   Cek dengan: ip link show | grep wlan
 _SCAN_TIMEOUT_SEC    = 20          # Timeout scan WiFi (detik)
-_CONNECT_TIMEOUT_SEC = 5          # Timeout proses koneksi (detik)
+_CONNECT_TIMEOUT_SEC = 6          # Timeout proses koneksi (detik)
 
 
 # ─── Parser Internal ──────────────────────────────────────────────────────────
@@ -160,28 +160,14 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
     if not ssid:
         return {"ssid": "", "error": "SSID tidak boleh kosong."}
 
-    # Susun perintah nmcli
-    # Catatan: Untuk jaringan WPA/WPA2, nmcli kadang butuh key-mgmt eksplisit
-    # agar tidak gagal dengan "property is missing" error.
-    # Referensi: nmcli(1) — device wifi connect
-    # cmd = [
-    #     _NMCLI_PATH,
-    #     "device", "wifi", "connect", ssid,
-    #     "ifname", _WIFI_INTERFACE,
-    # ]
-
-    # Tambahkan password hanya jika ada (jangan log password-nya)
-    # if password:
-    #     cmd += [
-    #         "password", password,
-    #         "wifi-sec.key-mgmt", "wpa-psk",
-    #     ]
-
-    # logger.info("Mencoba terhubung ke WiFi SSID: '%s' (password: %s)",
-    #             ssid, "***" if password else "(open)")
-
     try:
-        subprocess.run(['nmcli', 'dev', 'wifi', 'connect', ssid, 'password', password])
+        # jalankan file connect_wifi.sh dengan argumen ssid dan password
+        result = subprocess.run(
+            ["sudo", "/home/pi/pi_kiosk_system/utils/connect_wifi.sh", ssid, password],
+            capture_output=True,
+            text=True,
+            timeout=_CONNECT_TIMEOUT_SEC,
+        )
         return {"ssid": ssid, "error": None}
 
     except Exception as e:

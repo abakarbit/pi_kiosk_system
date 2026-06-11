@@ -12,7 +12,7 @@ if [ -z "$ssid" ] || [ -z "$password" ]; then
 fi
     
 echo "Menghapus profil lama..."
-nmcli connection delete "$ssid" >/dev/null 2>&1 || true
+sudo nmcli connection delete "$ssid" >/dev/null 2>&1 || true
 
 echo "Menunggu..."
 sleep 2
@@ -20,9 +20,9 @@ sleep 2
 echo "Menghubungkan ke WiFi: $ssid"
 
 if [ -n "$password" ]; then
-   nmcli device wifi connect "$ssid" password "$password"
+   sudo nmcli device wifi connect "$ssid" password "$password"
 else
-   nmcli device wifi connect "$ssid"
+   sudo nmcli device wifi connect "$ssid"
 fi
 
 

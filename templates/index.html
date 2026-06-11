@@ -2386,125 +2386,140 @@
           })
           .catch(() => toast("Gagal memuat riwayat kalibrasi", "te"));
       }
-      function expCSV() {
+      async function expCSV() {
     const checked = [...document.querySelectorAll(".hChk:checked")];
 
     if (!checked.length) {
-        return toast("Pilih data yang akan di-export", "twn");
+        toast("Pilih data yang akan di-export", "twn");
+        return;
     }
 
-    const ids = checked.map(cb => cb.dataset.id).join(",");
+    try {
+        const ids = checked.map(cb => cb.dataset.id).join(",");
 
-    fetch(`/api/kalibrasi/export?ids=${encodeURIComponent(ids)}`)
-        .then(res => {
-            if (!res.ok) throw new Error("Network Error");
-            return res.json();
-        })
-        .then(res => {
+        const response = await fetch(
+            "/api/kalibrasi/export?ids=" + encodeURIComponent(ids)
+        );
 
-            if (!res.success) {
-                return toast(res.error || "Gagal export", "te");
+        if (!response.ok) {
+            throw new Error("Gagal mengambil data");
+        }
+
+        const res = await response.json();
+
+        if (!res.success) {
+            toast(res.error || "Gagal export", "te");
+            return;
+        }
+
+        const { headers, details } = res.data;
+
+        const DELIMITER = ";";
+
+        // Escape value CSV
+        const csvEscape = (value) => {
+            if (value === null || value === undefined) {
+                return "";
             }
 
-            const { headers, details } = res.data;
+            value = String(value);
 
-            // Escape CSV
-            const csvEscape = (value) => {
-                if (value === null || value === undefined) return "";
-                value = String(value);
+            if (
+                value.includes(DELIMITER) ||
+                value.includes('"') ||
+                value.includes("\n") ||
+                value.includes("\r")
+            ) {
+                value = '"' + value.replace(/"/g, '""') + '"';
+            }
 
-                if (
-                    value.includes(",") ||
-                    value.includes('"') ||
-                    value.includes("\n") ||
-                    value.includes("\r")
-                ) {
-                    value = '"' + value.replace(/"/g, '""') + '"';
-                }
+            return value;
+        };
 
-                return value;
-            };
+        const rows = [];
 
-            const rows = [];
+        headers.forEach((header) => {
 
-            headers.forEach(header => {
+            // Header Kalibrasi
+            rows.push(["HEADER"]);
+            rows.push([
+                "ID",
+                "Nama Kalibrasi",
+                "Timestamp",
+                "Jumlah Detail"
+            ]);
 
-                rows.push(["HEADER"]);
-                rows.push([
-                    "ID",
-                    "Nama Kalibrasi",
-                    "Timestamp",
-                    "Jumlah Detail"
-                ]);
+            rows.push([
+                header.id,
+                header.calibname,
+                header.timestamp,
+                header.sum
+            ]);
 
-                rows.push([
-                    header.id,
-                    header.calibname,
-                    header.timestamp,
-                    header.sum
-                ]);
+            rows.push([]);
 
-                rows.push([]);
+            // Detail Kalibrasi
+            rows.push(["DETAIL"]);
+            rows.push([
+                "ID",
+                "Header ID",
+                "Timestamp",
+                "Red",
+                "Blue",
+                "Clear",
+                "Green"
+            ]);
 
-                rows.push(["DETAIL"]);
-                rows.push([
-                    "ID",
-                    "Header ID",
-                    "Timestamp",
-                    "Red",
-                    "Blue",
-                    "Clear",
-                    "Green"
-                ]);
+            details
+                .filter(detail => detail.header_id == header.id)
+                .forEach(detail => {
+                    rows.push([
+                        detail.id,
+                        detail.header_id,
+                        detail.timestamp,
+                        detail.red,
+                        detail.blue,
+                        detail.clear,
+                        detail.green
+                    ]);
+                });
 
-                details
-                    .filter(detail => detail.header_id === header.id)
-                    .forEach(detail => {
-                        rows.push([
-                            detail.id,
-                            detail.header_id,
-                            detail.timestamp,
-                            detail.red,
-                            detail.blue,
-                            detail.clear,
-                            detail.green
-                        ]);
-                    });
-
-                rows.push([]);
-                rows.push([]);
-            });
-
-            const csvContent = rows
-                .map(row => row.map(csvEscape).join(","))
-                .join("\r\n");
-
-            // UTF-8 BOM supaya Excel membaca karakter dengan benar
-            const blob = new Blob(
-                ["\uFEFF" + csvContent],
-                {
-                    type: "text/csv;charset=utf-8;"
-                }
-            );
-
-            const url = URL.createObjectURL(blob);
-
-            const link = document.createElement("a");
-            link.href = url;
-            link.download = `kalibrasi_${fdIn(new Date())}.csv`;
-
-            document.body.appendChild(link);
-            link.click();
-
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-
-            toast(`Export ${headers.length} kalibrasi berhasil`, "ts");
-        })
-        .catch(err => {
-            console.error(err);
-            toast("Gagal export data", "te");
+            // Baris kosong antar data
+            rows.push([]);
+            rows.push([]);
         });
+
+        // Generate CSV
+        const csvContent = rows
+            .map(row => row.map(csvEscape).join(DELIMITER))
+            .join("\r\n");
+
+        // Tambahkan UTF-8 BOM agar Excel membaca encoding dengan benar
+        const blob = new Blob(
+            ["\uFEFF" + csvContent],
+            {
+                type: "text/csv;charset=utf-8;"
+            }
+        );
+
+        const url = window.URL.createObjectURL(blob);
+
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `kalibrasi_${fdIn(new Date())}.csv`;
+
+        document.body.appendChild(link);
+        link.click();
+
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(url);
+
+        toast(`Export ${headers.length} data kalibrasi berhasil`, "ts");
+
+    } catch (error) {
+        console.error(error);
+        toast("Gagal export data", "te");
+    }
 }
 
       // ============================================================

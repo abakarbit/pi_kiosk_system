@@ -2,8 +2,8 @@
 
 # Function to connect to Wi-Fi
 
-local ssid="$1"
-local password="$2"
+ssid="$1"
+password="$2"
 
 # Validasi parameter
 if [ -z "$ssid" ] || [ -z "$password" ]; then

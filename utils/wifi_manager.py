@@ -163,7 +163,7 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
     try:
         # jalankan file connect_wifi.sh dengan argumen ssid dan password
         result = subprocess.run(
-            ["sudo", "/home/pi/pi_kiosk_system/utils/connect_wifi.sh", ssid, password],
+            ["/home/pi/pi_kiosk_system/utils/connect_wifi.sh", ssid, password],
             capture_output=True,
             text=True,
             timeout=_CONNECT_TIMEOUT_SEC,

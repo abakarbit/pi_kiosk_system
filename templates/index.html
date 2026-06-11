@@ -2387,32 +2387,125 @@
           .catch(() => toast("Gagal memuat riwayat kalibrasi", "te"));
       }
       function expCSV() {
-        const checked = [...document.querySelectorAll(".hChk:checked")];
-        if (!checked.length) return toast("Pilih data yang akan di-export", "twn");
-        const ids = checked.map((cb) => cb.dataset.id).join(",");
-        fetch("/api/kalibrasi/export?ids=" + ids)
-          .then((r) => r.json())
-          .then((res) => {
-            if (!res.success) return toast(res.error || "Gagal export", "te");
+    const checked = [...document.querySelectorAll(".hChk:checked")];
+
+    if (!checked.length) {
+        return toast("Pilih data yang akan di-export", "twn");
+    }
+
+    const ids = checked.map(cb => cb.dataset.id).join(",");
+
+    fetch(`/api/kalibrasi/export?ids=${encodeURIComponent(ids)}`)
+        .then(res => {
+            if (!res.ok) throw new Error("Network Error");
+            return res.json();
+        })
+        .then(res => {
+
+            if (!res.success) {
+                return toast(res.error || "Gagal export", "te");
+            }
+
             const { headers, details } = res.data;
-            let csv = "";
-            headers.forEach((h) => {
-              csv += `header\n${h.id},"${h.calibname}","${h.timestamp}",${h.sum}\nDetail\n`;
-              details
-                .filter((d) => d.header_id === h.id)
-                .forEach((d) => {
-                  csv += `${d.id},${d.header_id},"${d.timestamp}",${d.red},${d.blue},${d.clear},${d.green}\n`;
-                });
-              csv += "\n";
+
+            // Escape CSV
+            const csvEscape = (value) => {
+                if (value === null || value === undefined) return "";
+                value = String(value);
+
+                if (
+                    value.includes(",") ||
+                    value.includes('"') ||
+                    value.includes("\n") ||
+                    value.includes("\r")
+                ) {
+                    value = '"' + value.replace(/"/g, '""') + '"';
+                }
+
+                return value;
+            };
+
+            const rows = [];
+
+            headers.forEach(header => {
+
+                rows.push(["HEADER"]);
+                rows.push([
+                    "ID",
+                    "Nama Kalibrasi",
+                    "Timestamp",
+                    "Jumlah Detail"
+                ]);
+
+                rows.push([
+                    header.id,
+                    header.calibname,
+                    header.timestamp,
+                    header.sum
+                ]);
+
+                rows.push([]);
+
+                rows.push(["DETAIL"]);
+                rows.push([
+                    "ID",
+                    "Header ID",
+                    "Timestamp",
+                    "Red",
+                    "Blue",
+                    "Clear",
+                    "Green"
+                ]);
+
+                details
+                    .filter(detail => detail.header_id === header.id)
+                    .forEach(detail => {
+                        rows.push([
+                            detail.id,
+                            detail.header_id,
+                            detail.timestamp,
+                            detail.red,
+                            detail.blue,
+                            detail.clear,
+                            detail.green
+                        ]);
+                    });
+
+                rows.push([]);
+                rows.push([]);
             });
-            const a = document.createElement("a");
-            a.href = URL.createObjectURL(new Blob([csv], { type: "text/csv" }));
-            a.download = "kalibrasi_" + fdIn(new Date()) + ".csv";
-            a.click();
+
+            const csvContent = rows
+                .map(row => row.map(csvEscape).join(","))
+                .join("\r\n");
+
+            // UTF-8 BOM supaya Excel membaca karakter dengan benar
+            const blob = new Blob(
+                ["\uFEFF" + csvContent],
+                {
+                    type: "text/csv;charset=utf-8;"
+                }
+            );
+
+            const url = URL.createObjectURL(blob);
+
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = `kalibrasi_${fdIn(new Date())}.csv`;
+
+            document.body.appendChild(link);
+            link.click();
+
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
+
             toast(`Export ${headers.length} kalibrasi berhasil`, "ts");
-          })
-          .catch(() => toast("Gagal export data", "te"));
-      }
+        })
+        .catch(err => {
+            console.error(err);
+            toast("Gagal export data", "te");
+        });
+}
 
       // ============================================================
       //  DATETIME MODAL — Popup pengaturan tanggal & waktu

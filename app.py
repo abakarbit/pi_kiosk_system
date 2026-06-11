@@ -105,7 +105,7 @@ def api_kalibrasi_list():
     """Kembalikan semua detail_calibrations dengan is_save=0 (tanpa membaca sensor)."""
     try:
         rows = query_db(
-            "SELECT * FROM detail_calibrations WHERE is_save=0 ORDER BY id ASC"
+            "SELECT * FROM detail_calibrations WHERE is_save=0 ORDER BY id DESC"
         )
         return ok([dict(r) for r in rows])
     except Exception as e:
@@ -124,7 +124,7 @@ def api_kalibrasi_ulangi():
             "DELETE FROM detail_calibrations WHERE is_save=0 ORDER BY id DESC LIMIT 1"
         )
         rows = query_db(
-            "SELECT * FROM detail_calibrations WHERE is_save=0 ORDER BY id ASC"
+            "SELECT * FROM detail_calibrations WHERE is_save=0 ORDER BY id DESC"
         )
         return ok([dict(r) for r in rows], message="Data terakhir berhasil dihapus.")
     except Exception as e:

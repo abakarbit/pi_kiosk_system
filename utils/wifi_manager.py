@@ -168,6 +168,11 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
             text=True,
             timeout=_CONNECT_TIMEOUT_SEC,
         )
+        if result.returncode != 0:
+            err = result.stderr.strip() or "nmcli connect gagal."
+            err = _sanitize_error_message(err, password)
+            logger.error("WiFi connect failed (ssid='%s'): %s", ssid, err)
+            return {"ssid": ssid, "error": err}
         return {"ssid": ssid, "error": None}
 
     except Exception as e:

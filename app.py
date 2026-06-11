@@ -375,6 +375,40 @@ def api_system_settime():
         return err(f"Gagal mengatur waktu: {str(e)}")
 
 
+@app.route("/api/system/restart", methods=["POST"])
+def api_system_restart():
+    """
+    Restart Raspberry Pi.
+    Perintah: sudo /sbin/reboot
+    Response dikirim sebelum eksekusi karena server akan mati.
+    """
+    logger.warning("SYSTEM RESTART diminta oleh user!")
+    try:
+        # Jalankan reboot di background agar response bisa dikirim
+        subprocess.Popen(["sudo", "/sbin/reboot"])
+        return ok({"action": "restart"}, "Sistem akan restart dalam beberapa detik...")
+    except Exception as e:
+        logger.error("api_system_restart error: %s", e)
+        return err(f"Gagal merestart sistem: {str(e)}")
+
+
+@app.route("/api/system/shutdown", methods=["POST"])
+def api_system_shutdown():
+    """
+    Shutdown Raspberry Pi.
+    Perintah: sudo /sbin/shutdown -h now
+    Response dikirim sebelum eksekusi karena server akan mati.
+    """
+    logger.warning("SYSTEM SHUTDOWN diminta oleh user!")
+    try:
+        # Jalankan shutdown di background agar response bisa dikirim
+        subprocess.Popen(["sudo", "/sbin/shutdown", "-h", "now"])
+        return ok({"action": "shutdown"}, "Sistem akan mati dalam beberapa detik...")
+    except Exception as e:
+        logger.error("api_system_shutdown error: %s", e)
+        return err(f"Gagal mematikan sistem: {str(e)}")
+
+
 @app.route("/api/system/ip")
 def api_system_ip():
     """Ambil alamat IP lokal aktif dari semua interface jaringan."""

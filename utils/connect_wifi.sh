@@ -6,8 +6,8 @@ ssid="$1"
 password="$2"
 
 # Validasi parameter
-if [ -z "$ssid" ] || [ -z "$password" ]; then
-    echo "Usage: connect_wifi <SSID> <Password>"
+if [ -z "$ssid" ]; then
+    echo "[ERROR] Usage: connect_wifi.sh <SSID> [Password]"
     exit 1
 fi
     
@@ -27,5 +27,5 @@ fi
 
 
 # Example usage:
-# connect_wifi "Your_SSID" "Your_Password" 
-
+# connect_wifi.sh "Your_SSID" "Your_Password" 
+# connect_wifi.sh "Open_SSID"

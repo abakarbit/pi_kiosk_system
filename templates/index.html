@@ -1234,6 +1234,35 @@
       .dt-sel:focus {
         border-color: var(--acc);
       }
+      /* NTP Toggle Switch */
+      .ntp-trk {
+        width: 44px;
+        height: 24px;
+        background: var(--border);
+        border-radius: 12px;
+        padding: 2px;
+        transition: background 0.2s;
+        flex-shrink: 0;
+      }
+      .ntp-thb {
+        width: 20px;
+        height: 20px;
+        background: #fff;
+        border-radius: 50%;
+        transition: transform 0.2s;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.18);
+      }
+      .ntp-trk.on {
+        background: var(--ok);
+      }
+      .ntp-trk.on .ntp-thb {
+        transform: translateX(20px);
+      }
+      .dt-input:disabled,
+      .dt-sel:disabled {
+        opacity: 0.45;
+        pointer-events: none;
+      }
 
       /* TOAST */
       .twrap {
@@ -1725,6 +1754,16 @@
         </div>
         <div class="dt-rows">
           <div class="dt-row">
+            <span class="dt-label">NTP Sync</span>
+            <label class="ntp-sw" id="ntpSwWrap" style="display:flex;align-items:center;gap:8px;cursor:pointer;user-select:none;">
+              <input type="checkbox" id="ntpTgl" onchange="toggleNtp()" style="display:none;">
+              <div class="ntp-trk">
+                <div class="ntp-thb"></div>
+              </div>
+              <span id="ntpLbl" style="font-size:11px;font-weight:600;color:var(--fg3);">--</span>
+            </label>
+          </div>
+          <div class="dt-row">
             <span class="dt-label">Tanggal</span>
             <input type="date" class="dt-input" id="dtDate" />
           </div>
@@ -1806,6 +1845,7 @@
         selSSID = null,
         wifiConn = false;
       let timeOffset = 0; // Offset ms dari waktu sistem untuk simulasi
+      let ntpActive = false; // Status NTP sync
 
       // === Init ===
       document.addEventListener("DOMContentLoaded", () => {
@@ -2544,12 +2584,70 @@
         document.getElementById("dtM").value = d.getMinutes();
         document.getElementById("dtS").value = d.getSeconds();
         document.getElementById("dtMod").classList.add("show");
+        // Cek status NTP dari backend
+        fetchNtpStatus();
       }
       function clDtMod() {
         document.getElementById("dtMod").classList.remove("show");
       }
 
+      function fetchNtpStatus() {
+        fetch("/api/system/ntp-status")
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success && res.data) {
+              ntpActive = res.data.ntp_active;
+              updateNtpUI();
+            }
+          })
+          .catch(function() {});
+      }
+
+      function updateNtpUI() {
+        var tgl = document.getElementById("ntpTgl");
+        var trk = document.querySelector(".ntp-trk");
+        var lbl = document.getElementById("ntpLbl");
+        tgl.checked = ntpActive;
+        if (ntpActive) {
+          trk.classList.add("on");
+          lbl.textContent = "Aktif";
+          lbl.style.color = "var(--ok)";
+        } else {
+          trk.classList.remove("on");
+          lbl.textContent = "Nonaktif";
+          lbl.style.color = "var(--fg3)";
+        }
+        // Disable/enable manual inputs based on NTP state
+        document.getElementById("dtDate").disabled = ntpActive;
+        document.getElementById("dtH").disabled = ntpActive;
+        document.getElementById("dtM").disabled = ntpActive;
+        document.getElementById("dtS").disabled = ntpActive;
+        // Disable/enable Terapkan button
+        document.querySelector("#dtMod .bt-p").disabled = ntpActive;
+      }
+
+      function toggleNtp() {
+        var action = ntpActive ? "ntp-disable" : "ntp-enable";
+        fetch("/api/system/" + action, { method: "POST" })
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success) {
+              ntpActive = !ntpActive;
+              updateNtpUI();
+              if (ntpActive) {
+                toast(res.message || "NTP diaktifkan", "ts");
+              } else {
+                toast(res.message || "NTP dinonaktifkan", "ti");
+              }
+            } else {
+              toast(res.error || "Gagal", "te");
+            }
+          })
+          .catch(function() { toast("Gagal terhubung ke server", "te"); });
+      }
+
       function applyDt() {
+        if (ntpActive) return;
         const dateVal = document.getElementById("dtDate").value;
         const h = parseInt(document.getElementById("dtH").value);
         const m = parseInt(document.getElementById("dtM").value);

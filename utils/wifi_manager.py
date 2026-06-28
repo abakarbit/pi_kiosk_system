@@ -19,6 +19,7 @@ Fallback: Jika nmcli tidak tersedia, modul akan menggunakan wpa_cli.
 import subprocess
 import logging
 import re
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,9 @@ _NMCLI_PATH          = "nmcli"     # Path ke binary nmcli
 _WIFI_INTERFACE      = "wlan0"     # ← Sesuaikan nama interface WiFi Anda
                                    #   Cek dengan: ip link show | grep wlan
 _SCAN_TIMEOUT_SEC    = 20          # Timeout scan WiFi (detik)
-_CONNECT_TIMEOUT_SEC = 6          # Timeout proses koneksi (detik)
+_CONNECT_TIMEOUT_SEC = 15          # Timeout proses koneksi (detik)
+
+_SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
 
 
 # ─── Parser Internal ──────────────────────────────────────────────────────────
@@ -161,9 +164,9 @@ def connect_wifi(ssid: str, password: str = "") -> dict:
         return {"ssid": "", "error": "SSID tidak boleh kosong."}
 
     try:
-        # jalankan file connect_wifi.sh dengan argumen ssid dan password
+        script_path = os.path.join(_SCRIPT_DIR, "connect_wifi.sh")
         result = subprocess.run(
-            ["/home/pi/pi_kiosk_system/utils/connect_wifi.sh", ssid, password],
+            [script_path, ssid, password],
             capture_output=True,
             text=True,
             timeout=_CONNECT_TIMEOUT_SEC,

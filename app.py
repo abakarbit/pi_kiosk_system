@@ -347,6 +347,7 @@ def api_wifi_status():
 def api_system_settime():
     """
     Atur waktu sistem menggunakan timedatectl.
+    Setelah set manual, NTP service di-restart agar sync otomatis tetap berjalan.
 
     Request body (JSON):
         { "date": "YYYY-MM-DD", "hour": 14, "minute": 30, "second": 0 }
@@ -362,6 +363,10 @@ def api_system_settime():
         return err("Field 'date' tidak boleh kosong.", 400)
     dt_str = f"{date} {int(hour):02d}:{int(minute):02d}:{int(second):02d}"
     try:
+        # Hentikan dulu service NTP agar tidak menimpa waktu yang diatur
+        subprocess.run(["sudo", "systemctl", "stop", "systemd-timesyncd"],
+                       check=True, capture_output=True, timeout=5)
+
         subprocess.run(
             ["sudo", "timedatectl", "set-time", dt_str],
             check=True, capture_output=True, timeout=5
@@ -373,6 +378,103 @@ def api_system_settime():
     except Exception as e:
         logger.error("api_system_settime error: %s", e)
         return err(f"Gagal mengatur waktu: {str(e)}")
+    finally:
+        # Restart NTP service agar sync otomatis berjalan kembali
+        try:
+            subprocess.run(["sudo", "systemctl", "start", "systemd-timesyncd"],
+                           capture_output=True, timeout=5)
+        except Exception:
+            pass
+
+
+@app.route("/api/system/ntp-status")
+def api_system_ntp_status():
+    """
+    Cek status NTP synchronization.
+
+    Response:
+        { "success": true, "data": {
+            "ntp_active": true/false,
+            "ntp_synced": true/false,
+            "service": "active"/"inactive"
+          }
+        }
+    """
+    try:
+        # Cek apakah NTP sync aktif via timedatectl
+        r = subprocess.run(
+            ["timedatectl", "show"],
+            capture_output=True, text=True, timeout=5
+        )
+        ntp_synced = False
+        ntp_active = False
+        for line in r.stdout.splitlines():
+            if line.startswith("NTPSynchronized="):
+                ntp_synced = line.split("=", 1)[1] == "yes"
+            elif line.startswith("NTP="):
+                ntp_active = line.split("=", 1)[1] == "yes"
+
+        # Cek status service systemd-timesyncd
+        s = subprocess.run(
+            ["systemctl", "is-active", "systemd-timesyncd"],
+            capture_output=True, text=True, timeout=5
+        )
+        service = s.stdout.strip() if s.returncode == 0 else "inactive"
+
+        return ok({
+            "ntp_active": ntp_active,
+            "ntp_synced": ntp_synced,
+            "service": service,
+        })
+    except Exception as e:
+        logger.error("api_system_ntp_status error: %s", e)
+        return err(str(e))
+
+
+@app.route("/api/system/ntp-enable", methods=["POST"])
+def api_system_ntp_enable():
+    """
+    Aktifkan NTP synchronization via systemd-timesyncd.
+    """
+    try:
+        subprocess.run(
+            ["sudo", "timedatectl", "set-ntp", "true"],
+            check=True, capture_output=True, timeout=5
+        )
+        subprocess.run(
+            ["sudo", "systemctl", "start", "systemd-timesyncd"],
+            capture_output=True, timeout=5
+        )
+        return ok({"ntp": True}, message="NTP synchronization diaktifkan.")
+    except subprocess.CalledProcessError as e:
+        msg = e.stderr.decode().strip() if e.stderr else str(e)
+        return err(f"Gagal mengaktifkan NTP: {msg}")
+    except Exception as e:
+        logger.error("api_system_ntp_enable error: %s", e)
+        return err(str(e))
+
+
+@app.route("/api/system/ntp-disable", methods=["POST"])
+def api_system_ntp_disable():
+    """
+    Nonaktifkan NTP synchronization.
+    """
+    try:
+        subprocess.run(
+            ["sudo", "timedatectl", "set-ntp", "false"],
+            check=True, capture_output=True, timeout=5
+        )
+        subprocess.run(
+            ["sudo", "systemctl", "stop", "systemd-timesyncd"],
+            capture_output=True, timeout=5
+        )
+        return ok({"ntp": False}, message="NTP synchronization dinonaktifkan.")
+    except subprocess.CalledProcessError as e:
+        msg = e.stderr.decode().strip() if e.stderr else str(e)
+        return err(f"Gagal menonaktifkan NTP: {msg}")
+    except Exception as e:
+        logger.error("api_system_ntp_disable error: %s", e)
+        return err(str(e))
 
 
 @app.route("/api/system/restart", methods=["POST"])
@@ -496,7 +598,7 @@ def initialize_app() -> None:
     atexit.register(lambda: _shutdown(scheduler))
 
     logger.info("=" * 55)
-    logger.info(" Pi Kiosk System SIAP. Akses: http://localhost:5000")
+    logger.info(" Pi Kiosk System SIAP. Akses: http://0.0.0.0:9000")
     logger.info("=" * 55)
 
 
@@ -509,12 +611,9 @@ def _shutdown(scheduler) -> None:
     except Exception as e:
         logger.warning("  ⚠ Scheduler shutdown error: %s", e)
     try:
-        led.cleanup()
-        logger.info("  ✓ GPIO LED cleaned up.")
+        ups.close()
     except Exception as e:
-        logger.warning("  ⚠ LED cleanup error: %s", e)
-    color_sensor.close()
-    ups.close()
+        logger.warning("  ⚠ UPS close error: %s", e)
     logger.info("Pi Kiosk System: shutdown selesai.")
 
 

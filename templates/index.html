@@ -701,7 +701,7 @@
       }
       .csc {
         height: 255px;
-        overflow-y: auto;
+        overflow: auto;
       }
       .csc::-webkit-scrollbar {
         width: 5px;
@@ -790,7 +790,7 @@
       }
       .hsc {
         height: 100%;
-        overflow-y: auto;
+        overflow: auto;
       }
       .hsc::-webkit-scrollbar {
         width: 5px;
@@ -2597,6 +2597,7 @@
         trk.classList.remove("on");
         document.getElementById("ntpLbl").textContent = "Memuat...";
         document.getElementById("ntpLbl").style.color = "var(--fg3)";
+        document.getElementById("ntpTgl").disabled = true;
         fetchNtpStatus();
       }
       function clDtMod() {
@@ -2611,9 +2612,11 @@
               ntpActive = res.data.ntp_active;
             }
             updateNtpUI();
+            document.getElementById("ntpTgl").disabled = false;
           })
           .catch(function() {
             updateNtpUI();
+            document.getElementById("ntpTgl").disabled = false;
           });
       }
 

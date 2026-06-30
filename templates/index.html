@@ -546,7 +546,7 @@
       }
       .rtbl th {
         background: var(--bg2);
-        font-size: 11px;
+        font-size: 14px;
         font-weight: 700;
         color: var(--fg3);
         text-transform: uppercase;
@@ -560,7 +560,7 @@
       }
       .rtbl td {
         padding: 7px 10px;
-        font-size: 13px;
+        font-size: 16px;
         color: var(--fg2);
         border-bottom: 1px solid var(--border-lt);
       }
@@ -572,7 +572,7 @@
         font-weight: 600;
       }
       .rtbl .dt {
-        font-size: 12px;
+        font-size: 15px;
         color: var(--fg3);
       }
       .cr {
@@ -716,7 +716,7 @@
       }
       .ctbl th {
         background: var(--bg2);
-        font-size: 11px;
+        font-size: 14px;
         font-weight: 700;
         color: var(--fg3);
         text-transform: uppercase;
@@ -730,7 +730,7 @@
       }
       .ctbl td {
         padding: 6px 8px;
-        font-size: 13px;
+        font-size: 16px;
         font-family: "Consolas", monospace;
         color: var(--fg2);
         border-bottom: 1px solid var(--border-lt);
@@ -805,7 +805,7 @@
       }
       .htbl th {
         background: var(--bg2);
-        font-size: 11px;
+        font-size: 14px;
         font-weight: 700;
         color: var(--fg3);
         text-transform: uppercase;
@@ -819,7 +819,7 @@
       }
       .htbl td {
         padding: 7px 10px;
-        font-size: 13px;
+        font-size: 16px;
         color: var(--fg2);
         border-bottom: 1px solid var(--border-lt);
       }
@@ -2370,8 +2370,8 @@
                 <td class="vm cbl">${m.blue}</td>
                 <td class="vm">${m.clear}</td>
                 <td class="vm cg">${m.green}</td>
-                <td class="vm">${m.avg}</td>
-                <td class="vm">${m.avg_pro}</td>
+                <td class="vm">${m.avg.toFixed(2)}</td>
+                <td class="vm">${m.avg_pro.toFixed(2)}</td>
               </tr>`,
           )
           .join("");
@@ -2527,8 +2527,8 @@
                         detail.blue,
                         detail.clear,
                         detail.green,
-                        detail.avg,
-                        detail.avg_pro
+                        detail.avg.toFixed(2),
+                        detail.avg_pro.toFixed(2)
                     ]);
                 });
 
@@ -2592,7 +2592,11 @@
         document.getElementById("dtM").value = d.getMinutes();
         document.getElementById("dtS").value = d.getSeconds();
         document.getElementById("dtMod").classList.add("show");
-        // Cek status NTP dari backend
+        // reset toggle ke loading state sebelum fetch
+        var trk = document.querySelector(".ntp-trk");
+        trk.classList.remove("on");
+        document.getElementById("ntpLbl").textContent = "Memuat...";
+        document.getElementById("ntpLbl").style.color = "var(--fg3)";
         fetchNtpStatus();
       }
       function clDtMod() {
@@ -2605,10 +2609,12 @@
           .then(function(res) {
             if (res.success && res.data) {
               ntpActive = res.data.ntp_active;
-              updateNtpUI();
             }
+            updateNtpUI();
           })
-          .catch(function() {});
+          .catch(function() {
+            updateNtpUI();
+          });
       }
 
       function updateNtpUI() {
@@ -2636,6 +2642,11 @@
 
       function toggleNtp() {
         var action = ntpActive ? "ntp-disable" : "ntp-enable";
+        var lbl = document.getElementById("ntpLbl");
+        var tgl = document.getElementById("ntpTgl");
+        lbl.textContent = "Memproses...";
+        lbl.style.color = "var(--fg3)";
+        tgl.disabled = true;
         fetch("/api/system/" + action, { method: "POST" })
           .then(function(r) { return r.json(); })
           .then(function(res) {
@@ -2645,21 +2656,28 @@
               if (ntpActive) {
                 timeOffset = 0;
                 tickClock();
-                // refresh input modal agar sinkron dengan waktu system yang baru
                 var d = new Date();
                 document.getElementById("dtDate").value = fdIn(d);
                 document.getElementById("dtH").value = d.getHours();
                 document.getElementById("dtM").value = d.getMinutes();
                 document.getElementById("dtS").value = d.getSeconds();
-                toast(res.message || "NTP diaktifkan", "ts");
+                toast("NTP diaktifkan", "ts");
               } else {
-                toast(res.message || "NTP dinonaktifkan", "ti");
+                toast("NTP dinonaktifkan", "ti");
               }
             } else {
-              toast(res.error || "Gagal", "te");
+              lbl.textContent = ntpActive ? "Aktif" : "Nonaktif";
+              lbl.style.color = ntpActive ? "var(--ok)" : "var(--fg3)";
+              tgl.disabled = false;
+              toast("Gagal " + (ntpActive ? "menonaktifkan" : "mengaktifkan") + " NTP", "te");
             }
           })
-          .catch(function() { toast("Gagal terhubung ke server", "te"); });
+          .catch(function() {
+            lbl.textContent = ntpActive ? "Aktif" : "Nonaktif";
+            lbl.style.color = ntpActive ? "var(--ok)" : "var(--fg3)";
+            tgl.disabled = false;
+            toast("Gagal terhubung ke server", "te");
+          });
       }
 
       function applyDt() {

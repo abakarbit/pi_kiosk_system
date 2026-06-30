@@ -27,6 +27,7 @@ REST API Endpoints:
 import logging
 import atexit
 import subprocess
+import time
 
 # ─── Setup logging (harus dilakukan sebelum import modul lain) ────────────────
 logging.basicConfig(
@@ -435,6 +436,7 @@ def api_system_ntp_status():
 def api_system_ntp_enable():
     """
     Aktifkan NTP synchronization via systemd-timesyncd.
+    Restart service untuk memicu sinkronisasi segera, lalu tunggu hingga sync selesai.
     """
     try:
         subprocess.run(
@@ -442,9 +444,18 @@ def api_system_ntp_enable():
             check=True, capture_output=True, timeout=5
         )
         subprocess.run(
-            ["sudo", "systemctl", "start", "systemd-timesyncd"],
-            capture_output=True, timeout=5
+            ["sudo", "systemctl", "restart", "systemd-timesyncd"],
+            capture_output=True, timeout=10
         )
+        # Polling NTPSynchronized, max 10 detik
+        for _ in range(10):
+            time.sleep(1)
+            r = subprocess.run(
+                ["timedatectl", "show", "-p", "NTPSynchronized"],
+                capture_output=True, text=True, timeout=3
+            )
+            if "yes" in r.stdout:
+                break
         return ok({"ntp": True}, message="NTP synchronization diaktifkan.")
     except subprocess.CalledProcessError as e:
         msg = e.stderr.decode().strip() if e.stderr else str(e)
@@ -548,7 +559,7 @@ def api_kalibrasi_export():
             tuple(ids)
         )
         details = query_db(
-            f"SELECT id, header_id, timestamp, red, blue, clear, green FROM detail_calibrations WHERE header_id IN ({ph}) ORDER BY header_id, id",
+            f"SELECT id, header_id, timestamp, red, blue, clear, green, avg, avg_pro FROM detail_calibrations WHERE header_id IN ({ph}) ORDER BY header_id, id",
             tuple(ids)
         )
         return ok({
@@ -617,10 +628,7 @@ def _shutdown(scheduler) -> None:
     logger.info("Pi Kiosk System: shutdown selesai.")
 
 
-# ─── Jalankan inisiasi ────────────────────────────────────────────────────────
-# initialize_app() dipanggil di sini (bukan di dalam if __name__ == '__main__')
-# agar juga berjalan saat dijalankan via WSGI server (misal: gunicorn).
-# use_reloader=False pada app.run() mencegah pemanggilan ganda.
+
 initialize_app()
 
 

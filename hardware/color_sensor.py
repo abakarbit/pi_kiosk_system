@@ -345,6 +345,19 @@ def reading():
 
         print_reading_rata_rata(seq, avg)
 
+        # Ambil rata-rata
+        red_avg   = avg.get("Red",   0.0)
+        blue_avg  = avg.get("Blue",  0.0)
+        clear_avg = avg.get("Clear", 0.0)
+        green_avg = avg.get("Green", 0.0)
+
+        avgRow = round((red_avg + blue_avg + clear_avg + green_avg) / 4, 1)
+
+        rKorelsi = red_avg/clear_avg
+        gKorelsi = green_avg/clear_avg
+        bKorelsi = blue_avg/clear_avg
+        intensitas = (0.299 * red_avg) + (0.587 * green_avg) + (0.114 * blue_avg)
+
         # Simpan rata-rata ke database sebagai pending (is_save=0)
         detail_id = insert_calibration_detail(
             header_id=None,
@@ -352,6 +365,8 @@ def reading():
             blue=avg.get("Blue",  0.0),
             clear=avg.get("Clear", 0.0),
             green=avg.get("Green", 0.0),
+            avg=avgRow,
+            avg_pro=intensitas,
             is_save=0,
         )
         

@@ -77,6 +77,8 @@ def init_db() -> None:
                 blue         FLOAT   NOT NULL,
                 clear        FLOAT   NOT NULL,
                 green        FLOAT   NOT NULL,
+                avg          FLOAT   NOT NULL,
+                avg_pro      FLOAT   NOT NULL,
                 is_save      INTEGER NOT NULL DEFAULT 0
             )
         """)
@@ -130,7 +132,7 @@ def insert_calibration_header(calibname: str, sum_value: int) -> int:
     )
 
 # Insert Detail Kalibrasi
-def insert_calibration_detail(header_id: int, red: float, blue: float, clear: float, green: float, is_save: int) -> int:
+def insert_calibration_detail(header_id: int, red: float, blue: float, clear: float, green: float, avg: float, avg_pro: float, is_save: int) -> int:
     """Sisipkan detail kalibrasi baru yang terkait dengan header tertentu.
 
     Args:
@@ -145,8 +147,8 @@ def insert_calibration_detail(header_id: int, red: float, blue: float, clear: fl
         int: ID dari detail kalibrasi yang baru disisipkan.
     """
     return execute_db(
-        "INSERT INTO detail_calibrations (header_id, red, blue, clear, green, is_save) VALUES (?, ?, ?, ?, ?, ?)",
-        (header_id, red, blue, clear, green, is_save),
+        "INSERT INTO detail_calibrations (header_id, red, blue, clear, green, avg, avg_pro, is_save) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        (header_id, red, blue, clear, green, avg, avg_pro, is_save),
     )
 
 
@@ -159,7 +161,7 @@ def get_active_calibration_details(header_id: int) -> list[sqlite3.Row]:
         header_id: ID dari header kalibrasi yang ingin diambil detailnya.
 
     Returns:
-        List of sqlite3.Row: Setiap row berisi kolom id, header_id, timestamp, red, blue, clear, green, is_save.
+        List of sqlite3.Row: Setiap row berisi kolom id, header_id, timestamp, red, blue, clear, green, avg, avg_pro, is_save.
     """
     return query_db(
         "SELECT * FROM detail_calibrations WHERE is_save = 0"

@@ -2399,16 +2399,14 @@
           .map(function(m, i) {
             var calcAvg = 0, calcLum = 0;
             if (visCh.length > 0) {
-              var sum = 0, wSum = 0;
+              var sum = 0;
               for (var j = 0; j < visCh.length; j++) {
                 var ch = visCh[j];
                 sum += Number(m[ch]) || 0;
                 var w = LUM_WEIGHTS[ch] || 0;
                 calcLum += w * (Number(m[ch]) || 0);
-                wSum += w;
               }
               calcAvg = sum / visCh.length;
-              calcLum = wSum > 0 ? calcLum / wSum : 0;
             }
             return '<tr><td class="vm">' + (i + 1)
               + '</td><td class="vm">' + m.timestamp + '</td>'
@@ -2649,16 +2647,14 @@
                 .forEach(function(detail) {
                     var calcAvg = 0, calcLum = 0;
                     if (visCh.length > 0) {
-                        var sum = 0, wSum = 0;
+                        var sum = 0;
                         for (var j = 0; j < visCh.length; j++) {
                             var ch = visCh[j];
                             sum += Number(detail[ch]) || 0;
                             var w = LUM_WEIGHTS[ch] || 0;
                             calcLum += w * (Number(detail[ch]) || 0);
-                            wSum += w;
                         }
                         calcAvg = sum / visCh.length;
-                        calcLum = wSum > 0 ? calcLum / wSum : 0;
                     }
                     var detailRow = [detail.id, detail.header_id, detail.timestamp];
                     for (var ci2 = 0; ci2 < cols.length; ci2++) {

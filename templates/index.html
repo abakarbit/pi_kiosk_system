@@ -1550,18 +1550,7 @@
           <div class="pnl ctw" style="position: relative">
             <div class="csc">
               <table class="ctbl">
-                <thead>
-                  <tr>
-                    <th>No</th>
-                    <th>Waktu</th>
-                    <th>Red (HZ)</th>
-                    <th>Blue (HZ)</th>
-                    <th>Clear (HZ)</th>
-                    <th>Green (HZ)</th>
-                    <th>AVG</th>
-                    <th>LUMINANCE</th>
-                  </tr>
-                </thead>
+                <thead id="cHead"></thead>
                 <tbody id="cBody"></tbody>
               </table>
               <div class="eb" id="cEmpty">
@@ -1586,6 +1575,9 @@
             </button>
             <button class="bt" onclick="go('history')">
               <i class="fas fa-clock-rotate-left"></i> Riwayat
+            </button>
+            <button class="bt" onclick="openColumnConfig()" title="Pengaturan Kolom Tabel">
+              <i class="fas fa-gear"></i>
             </button>
             <button class="bt bt-err" id="btnBatal" onclick="batal()">
               <i class="fas fa-times"></i> Batal
@@ -1801,6 +1793,26 @@
       </div>
     </div>
 
+    <!-- CONFIG COLUMNS MODAL -->
+    <div class="mo" id="cfgMod" role="dialog" aria-modal="true" aria-label="Pengaturan Kolom">
+      <div class="mbox" style="max-width:320px;">
+        <div class="mh">
+          <h3><i class="fas fa-gear" style="margin-right:6px;color:var(--acc);"></i>Pengaturan Kolom</h3>
+          <button class="mx" onclick="clCfgMod()" aria-label="Tutup"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="mbo" style="padding:10px 14px;">
+          <div style="font-size:11px;color:var(--fg3);margin-bottom:8px;">
+            Pilih kolom yang ditampilkan di tabel kalibrasi:
+          </div>
+          <div id="cfgList"></div>
+        </div>
+        <div class="mf">
+          <button class="bt" onclick="clCfgMod()">Batal</button>
+          <button class="bt bt-p" onclick="saveColumnConfig()"><i class="fas fa-check"></i> Simpan</button>
+        </div>
+      </div>
+    </div>
+
     <!-- CALIB NAME OSK -->
     <div id="calibOskBg" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.5);" onclick="closeCalibOSK(false)"></div>
     <div id="calibOskPanel" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:151;background:var(--bg);border-top:2px solid var(--border);border-radius:14px 14px 0 0;padding:10px 10px 8px;">
@@ -1839,7 +1851,17 @@
         wifiSignal: 0,
         systemIP: "",
         upsLogs: [],
+        visibleColumns: null,
       };
+
+      const CALIB_COLUMNS = [
+        { key: 'red',       label: 'Red (HZ)',   field: 'red',     fmt: function(v) { return v; },                      cls: 'cr'  },
+        { key: 'blue',      label: 'Blue (HZ)',  field: 'blue',    fmt: function(v) { return v; },                      cls: 'cbl' },
+        { key: 'clear',     label: 'Clear (HZ)', field: 'clear',   fmt: function(v) { return v; },                      cls: ''    },
+        { key: 'green',     label: 'Green (HZ)', field: 'green',   fmt: function(v) { return v; },                      cls: 'cg'  },
+        { key: 'avg',       label: 'AVG',        field: 'avg',     fmt: function(v) { return Number(v).toFixed(2); },   cls: ''    },
+        { key: 'luminance', label: 'LUMINANCE',  field: 'avg_pro', fmt: function(v) { return Number(v).toFixed(2); },   cls: ''    },
+      ];
 
       let pwdVal = "",
         pwdVis = false,
@@ -1851,7 +1873,9 @@
 
       // === Init ===
       document.addEventListener("DOMContentLoaded", () => {
+        S.visibleColumns = CALIB_COLUMNS.map(function(c) { return c.key; });
         loadDB();
+        loadColumnConfig();
         updBat(S.ups.pct);
         updWifi();
         renderLat();
@@ -2353,7 +2377,15 @@
       }
       function renderCal(data) {
         const b = document.getElementById("cBody"),
-          e = document.getElementById("cEmpty");
+          e = document.getElementById("cEmpty"),
+          h = document.getElementById("cHead");
+
+        const vis = S.visibleColumns || CALIB_COLUMNS.map(function(c) { return c.key; });
+        const cols = CALIB_COLUMNS.filter(function(c) { return vis.indexOf(c.key) !== -1; });
+
+        h.innerHTML = '<tr><th>No</th><th>Waktu</th>'
+          + cols.map(function(c) { return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
+
         if (!data || !data.length) {
           b.innerHTML = "";
           e.style.display = "flex";
@@ -2361,23 +2393,21 @@
         }
         e.style.display = "none";
         b.innerHTML = data
-          .map(
-            (m, i) =>
-              `<tr>
-                <td class="vm">${i + 1}</td>
-                <td class="vm">${m.timestamp}</td>
-                <td class="vm cr">${m.red}</td>
-                <td class="vm cbl">${m.blue}</td>
-                <td class="vm">${m.clear}</td>
-                <td class="vm cg">${m.green}</td>
-                <td class="vm">${m.avg.toFixed(2)}</td>
-                <td class="vm">${m.avg_pro.toFixed(2)}</td>
-              </tr>`,
-          )
+          .map(function(m, i) {
+            return '<tr><td class="vm">' + (i + 1)
+              + '</td><td class="vm">' + m.timestamp + '</td>'
+              + cols.map(function(c) {
+                  return '<td class="vm' + (c.cls ? ' ' + c.cls : '') + '">' + c.fmt(m[c.field]) + '</td>';
+                }).join('')
+              + '</tr>';
+          })
           .join("");
       }
 
       function loadCalibData() {
+        if (!S.visibleColumns) {
+          S.visibleColumns = CALIB_COLUMNS.map(function(c) { return c.key; });
+        }
         fetch("/api/kalibrasi/list")
           .then((res) => res.json())
           .then((res) => {
@@ -2385,7 +2415,86 @@
           })
           .catch(() => {});
       }
-      
+
+
+      async function loadColumnConfig() {
+        try {
+          var res = await fetch('/api/config/calibration-columns');
+          var json = await res.json();
+          if (json.success && json.data && json.data.columns) {
+            S.visibleColumns = json.data.columns;
+            try { localStorage.setItem('sh4_colvis', JSON.stringify(S.visibleColumns)); } catch(e) {}
+          }
+        } catch {
+          try {
+            var saved = localStorage.getItem('sh4_colvis');
+            if (saved) S.visibleColumns = JSON.parse(saved);
+          } catch(e) {}
+          if (!S.visibleColumns) S.visibleColumns = CALIB_COLUMNS.map(function(c) { return c.key; });
+        }
+        if (S.pg === 'calib') {
+          try {
+            var r = await fetch('/api/kalibrasi/list');
+            var rj = await r.json();
+            if (rj.success) renderCal(rj.data || []);
+          } catch(e) {}
+        }
+      }
+
+      function openColumnConfig() {
+        loadColumnConfig().then(function() {
+          var list = document.getElementById('cfgList');
+          var vis = S.visibleColumns || CALIB_COLUMNS.map(function(c) { return c.key; });
+          var html = '';
+          for (var i = 0; i < CALIB_COLUMNS.length; i++) {
+            var c = CALIB_COLUMNS[i];
+            var checked = vis.indexOf(c.key) !== -1 ? ' checked' : '';
+            html += '<label style="display:flex;align-items:center;gap:8px;padding:8px 0;cursor:pointer;border-bottom:1px solid var(--border-lt);font-size:13px;user-select:none;">'
+              + '<input type="checkbox" class="cfgChk" data-key="' + c.key + '"' + checked + ' style="width:15px;height:15px;accent-color:var(--acc);">'
+              + c.label + '</label>';
+          }
+          list.innerHTML = html;
+          document.getElementById('cfgMod').classList.add('show');
+        });
+      }
+
+      function clCfgMod() {
+        document.getElementById('cfgMod').classList.remove('show');
+      }
+
+      async function saveColumnConfig() {
+        var cbs = document.querySelectorAll('.cfgChk:checked');
+        if (!cbs.length) {
+          toast('Pilih minimal 1 kolom', 'twn');
+          return;
+        }
+        var columns = [];
+        cbs.forEach(function(cb) { columns.push(cb.dataset.key); });
+        try {
+          var res = await fetch('/api/config/calibration-columns', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ columns: columns }),
+          });
+          var json = await res.json();
+          if (json.success) {
+            S.visibleColumns = columns;
+            try { localStorage.setItem('sh4_colvis', JSON.stringify(columns)); } catch(e) {}
+            clCfgMod();
+            if (S.pg === 'calib') {
+              var r = await fetch('/api/kalibrasi/list');
+              var rj = await r.json();
+              if (rj.success) renderCal(rj.data || []);
+            }
+            toast('Pengaturan kolom disimpan', 'ts');
+          } else {
+            toast(json.error || 'Gagal menyimpan pengaturan', 'te');
+          }
+        } catch {
+          toast('Gagal menyimpan pengaturan', 'te');
+        }
+      }
+
 
       // ============================================================
       //  HISTORY
@@ -3220,6 +3329,7 @@
         if (e.key === "Escape") {
           clWifi();
           clDtMod();
+          clCfgMod();
           closeCalibOSK(false);
         }
         if (e.key === "Enter" && document.getElementById("calibOskPanel").style.display !== "none") {
@@ -3234,6 +3344,9 @@
       });
       document.getElementById("cfMod").addEventListener("click", (e) => {
         if (e.target === e.currentTarget) cfClose();
+      });
+      document.getElementById("cfgMod").addEventListener("click", (e) => {
+        if (e.target === e.currentTarget) clCfgMod();
       });
     </script>
   </body>

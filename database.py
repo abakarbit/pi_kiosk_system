@@ -100,6 +100,14 @@ def init_db() -> None:
             )
         """)
 
+        # ── Tabel 4: app_config ────────────────────────────────────────────────────────
+        cur.execute("""
+            CREATE TABLE IF NOT EXISTS app_config (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            )
+        """)
+
         conn.commit()
         logger.info("Database initialized successfully at: %s", DATABASE_PATH)
 
@@ -189,6 +197,35 @@ def query_db(sql: str, params: tuple = ()) -> list[sqlite3.Row]:
         raise
     finally:
         conn.close()
+
+
+def get_config(key: str, default: str = None) -> str:
+    """
+    Ambil nilai konfigurasi berdasarkan key dari tabel app_config.
+
+    Args:
+        key     : Kunci konfigurasi yang dicari.
+        default : Nilai default jika key tidak ditemukan.
+
+    Returns:
+        str: Nilai konfigurasi, atau default jika tidak ditemukan.
+    """
+    rows = query_db("SELECT value FROM app_config WHERE key = ?", (key,))
+    return rows[0]["value"] if rows else default
+
+
+def set_config(key: str, value: str) -> None:
+    """
+    Simpan atau update nilai konfigurasi ke tabel app_config.
+
+    Args:
+        key   : Kunci konfigurasi.
+        value : Nilai konfigurasi yang akan disimpan.
+    """
+    execute_db(
+        "INSERT INTO app_config (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = ?",
+        (key, value, value),
+    )
 
 
 def execute_db(sql: str, params: tuple = ()) -> int:

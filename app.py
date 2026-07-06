@@ -24,6 +24,7 @@ REST API Endpoints:
   GET  /api/wifi/status          → Status koneksi WiFi aktif
 """
 
+import json
 import logging
 import atexit
 import subprocess
@@ -40,7 +41,7 @@ logger = logging.getLogger(__name__)
 from flask import Flask, jsonify, request, render_template
 
 # ─── Import modul internal ────────────────────────────────────────────────────
-from database         import init_db, query_db, execute_db
+from database         import init_db, query_db, execute_db, get_config, set_config
 from hardware.color_sensor import reading
 from hardware.ups_3s       import UPS3S
 from utils.wifi_manager    import scan_wifi, connect_wifi, get_wifi_status
@@ -583,6 +584,55 @@ def api_kalibrasi_export():
     except Exception as e:
         logger.error("api_kalibrasi_export error: %s", e)
         return err("Gagal mengambil data export.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ROUTE: Application Config
+# ═══════════════════════════════════════════════════════════════════════════════
+
+DEFAULT_CALIB_COLUMNS = json.dumps(["red", "blue", "clear", "green", "avg", "luminance"])
+
+
+@app.route("/api/config/calibration-columns")
+def api_config_calibration_columns():
+    """Ambil pengaturan kolom yang ditampilkan di tabel kalibrasi."""
+    try:
+        value = get_config("calibration_columns", DEFAULT_CALIB_COLUMNS)
+        columns = json.loads(value)
+        return ok({"columns": columns})
+    except (json.JSONDecodeError, Exception) as e:
+        logger.error("api_config_calibration_columns error: %s", e)
+        return err("Gagal membaca konfigurasi kolom kalibrasi.")
+
+
+@app.route("/api/config/calibration-columns", methods=["POST"])
+def api_config_save_calibration_columns():
+    """
+    Simpan pengaturan kolom yang ditampilkan di tabel kalibrasi.
+
+    Request body (JSON):
+        { "columns": ["red", "blue", "clear", "green", "avg", "luminance"] }
+    """
+    body = request.get_json(silent=True)
+    if not body:
+        return err("Request body harus berupa JSON.", 400)
+
+    columns = body.get("columns", None)
+    if not isinstance(columns, list) or not columns:
+        return err("Field 'columns' harus berupa array dan minimal 1 kolom.", 400)
+
+    # Validasi: hanya terima key yang dikenal
+    valid_keys = {"red", "blue", "clear", "green", "avg", "luminance"}
+    filtered = [c for c in columns if c in valid_keys]
+    if not filtered:
+        return err("Tidak ada kolom yang valid. Pastikan memilih minimal 1 kolom.", 400)
+
+    try:
+        set_config("calibration_columns", json.dumps(filtered))
+        return ok({"columns": filtered}, message="Konfigurasi kolom kalibrasi disimpan.")
+    except Exception as e:
+        logger.error("api_config_save_calibration_columns error: %s", e)
+        return err("Gagal menyimpan konfigurasi kolom kalibrasi.")
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

@@ -2632,36 +2632,44 @@
             rows.push([]);
 
             // Detail Kalibrasi
+            var vis = S.visibleColumns || CALIB_COLUMNS.map(function(c) { return c.key; });
+            var cols = CALIB_COLUMNS.filter(function(c) { return vis.indexOf(c.key) !== -1; });
+            var CH_KEYS = ['red', 'green', 'blue'];
+            var visCh = CH_KEYS.filter(function(k) { return vis.indexOf(k) !== -1; });
+
+            var detailHeader = ["ID", "Header ID", "Timestamp"];
+            for (var ci = 0; ci < cols.length; ci++) {
+                detailHeader.push(cols[ci].label);
+            }
             rows.push(["DETAIL"]);
-            rows.push([
-                "ID",
-                "Header ID",
-                "Timestamp",
-                "Red (G)",
-                "Green (G)",
-                "Blue (B)",
-                "AVG",
-                "LUMINANCE"
-            ]);
+            rows.push(detailHeader);
 
             details
-                .filter(detail => detail.header_id == header.id)
-                .forEach(detail => {
-                    var r = Number(detail.red) || 0;
-                    var g = Number(detail.green) || 0;
-                    var b = Number(detail.blue) || 0;
-                    var calcAvg = ((r + g + b) / 3).toFixed(2);
-                    var calcLum = (0.299 * r + 0.587 * g + 0.114 * b).toFixed(2);
-                    rows.push([
-                        detail.id,
-                        detail.header_id,
-                        detail.timestamp,
-                        r.toFixed(2),
-                        g.toFixed(2),
-                        b.toFixed(2),
-                        calcAvg,
-                        calcLum
-                    ]);
+                .filter(function(detail) { return detail.header_id == header.id; })
+                .forEach(function(detail) {
+                    var calcAvg = 0, calcLum = 0;
+                    if (visCh.length > 0) {
+                        var sum = 0, wSum = 0;
+                        for (var j = 0; j < visCh.length; j++) {
+                            var ch = visCh[j];
+                            sum += Number(detail[ch]) || 0;
+                            var w = LUM_WEIGHTS[ch] || 0;
+                            calcLum += w * (Number(detail[ch]) || 0);
+                            wSum += w;
+                        }
+                        calcAvg = sum / visCh.length;
+                        calcLum = wSum > 0 ? calcLum / wSum : 0;
+                    }
+                    var detailRow = [detail.id, detail.header_id, detail.timestamp];
+                    for (var ci2 = 0; ci2 < cols.length; ci2++) {
+                        var c = cols[ci2];
+                        var val;
+                        if (c.type === 'avg')        val = calcAvg.toFixed(2);
+                        else if (c.type === 'lum')   val = calcLum.toFixed(2);
+                        else                         val = Number(detail[c.field]).toFixed(2);
+                        detailRow.push(val);
+                    }
+                    rows.push(detailRow);
                 });
 
             // Baris kosong antar data

@@ -590,7 +590,7 @@ def api_kalibrasi_export():
 # ROUTE: Application Config
 # ═══════════════════════════════════════════════════════════════════════════════
 
-DEFAULT_CALIB_COLUMNS = json.dumps(["red", "blue", "clear", "green", "avg", "luminance"])
+DEFAULT_CALIB_COLUMNS = json.dumps(["red", "green", "blue", "avg", "luminance"])
 
 
 @app.route("/api/config/calibration-columns")
@@ -622,7 +622,7 @@ def api_config_save_calibration_columns():
         return err("Field 'columns' harus berupa array dan minimal 1 kolom.", 400)
 
     # Validasi: hanya terima key yang dikenal
-    valid_keys = {"red", "blue", "clear", "green", "avg", "luminance"}
+    valid_keys = {"red", "green", "blue", "avg", "luminance"}
     filtered = [c for c in columns if c in valid_keys]
     if not filtered:
         return err("Tidak ada kolom yang valid. Pastikan memilih minimal 1 kolom.", 400)

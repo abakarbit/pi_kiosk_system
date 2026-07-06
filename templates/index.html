@@ -1854,13 +1854,14 @@
         visibleColumns: null,
       };
 
+      const LUM_WEIGHTS = { red: 0.299, green: 0.587, blue: 0.114 };
+
       const CALIB_COLUMNS = [
-        { key: 'red',       label: 'Red (HZ)',   field: 'red',     fmt: function(v) { return v; },                      cls: 'cr'  },
-        { key: 'blue',      label: 'Blue (HZ)',  field: 'blue',    fmt: function(v) { return v; },                      cls: 'cbl' },
-        { key: 'clear',     label: 'Clear (HZ)', field: 'clear',   fmt: function(v) { return v; },                      cls: ''    },
-        { key: 'green',     label: 'Green (HZ)', field: 'green',   fmt: function(v) { return v; },                      cls: 'cg'  },
-        { key: 'avg',       label: 'AVG',        field: 'avg',     fmt: function(v) { return Number(v).toFixed(2); },   cls: ''    },
-        { key: 'luminance', label: 'LUMINANCE',  field: 'avg_pro', fmt: function(v) { return Number(v).toFixed(2); },   cls: ''    },
+        { key: 'red',       label: 'Red (G)',    field: 'red',   type: 'raw', cls: 'cr'  },
+        { key: 'green',     label: 'Green (G)',  field: 'green', type: 'raw', cls: 'cg'  },
+        { key: 'blue',      label: 'Blue (B)',   field: 'blue',  type: 'raw', cls: 'cbl' },
+        { key: 'avg',       label: 'AVG',                            type: 'avg', cls: '' },
+        { key: 'luminance', label: 'LUMINANCE',                      type: 'lum', cls: '' },
       ];
 
       let pwdVal = "",
@@ -2382,6 +2383,8 @@
 
         const vis = S.visibleColumns || CALIB_COLUMNS.map(function(c) { return c.key; });
         const cols = CALIB_COLUMNS.filter(function(c) { return vis.indexOf(c.key) !== -1; });
+        const CH_KEYS = ['red', 'green', 'blue'];
+        const visCh = CH_KEYS.filter(function(k) { return vis.indexOf(k) !== -1; });
 
         h.innerHTML = '<tr><th>No</th><th>Waktu</th>'
           + cols.map(function(c) { return '<th>' + c.label + '</th>'; }).join('') + '</tr>';
@@ -2394,10 +2397,27 @@
         e.style.display = "none";
         b.innerHTML = data
           .map(function(m, i) {
+            var calcAvg = 0, calcLum = 0;
+            if (visCh.length > 0) {
+              var sum = 0, wSum = 0;
+              for (var j = 0; j < visCh.length; j++) {
+                var ch = visCh[j];
+                sum += Number(m[ch]) || 0;
+                var w = LUM_WEIGHTS[ch] || 0;
+                calcLum += w * (Number(m[ch]) || 0);
+                wSum += w;
+              }
+              calcAvg = sum / visCh.length;
+              calcLum = wSum > 0 ? calcLum / wSum : 0;
+            }
             return '<tr><td class="vm">' + (i + 1)
               + '</td><td class="vm">' + m.timestamp + '</td>'
               + cols.map(function(c) {
-                  return '<td class="vm' + (c.cls ? ' ' + c.cls : '') + '">' + c.fmt(m[c.field]) + '</td>';
+                  var val;
+                  if (c.type === 'avg')       val = calcAvg.toFixed(2);
+                  else if (c.type === 'lum')  val = calcLum.toFixed(2);
+                  else                        val = Number(m[c.field]).toFixed(2);
+                  return '<td class="vm' + (c.cls ? ' ' + c.cls : '') + '">' + val + '</td>';
                 }).join('')
               + '</tr>';
           })
@@ -2422,13 +2442,13 @@
           var res = await fetch('/api/config/calibration-columns');
           var json = await res.json();
           if (json.success && json.data && json.data.columns) {
-            S.visibleColumns = json.data.columns;
+            S.visibleColumns = json.data.columns.filter(function(k) { return k !== 'clear'; });
             try { localStorage.setItem('sh4_colvis', JSON.stringify(S.visibleColumns)); } catch(e) {}
           }
         } catch {
           try {
             var saved = localStorage.getItem('sh4_colvis');
-            if (saved) S.visibleColumns = JSON.parse(saved);
+            if (saved) S.visibleColumns = JSON.parse(saved).filter(function(k) { return k !== 'clear'; });
           } catch(e) {}
           if (!S.visibleColumns) S.visibleColumns = CALIB_COLUMNS.map(function(c) { return c.key; });
         }
@@ -2617,10 +2637,9 @@
                 "ID",
                 "Header ID",
                 "Timestamp",
-                "Red (HZ)",
-                "Blue (HZ)",
-                "Clear (HZ)",
-                "Green (HZ)",
+                "Red (G)",
+                "Green (G)",
+                "Blue (B)",
                 "AVG",
                 "LUMINANCE"
             ]);
@@ -2628,16 +2647,20 @@
             details
                 .filter(detail => detail.header_id == header.id)
                 .forEach(detail => {
+                    var r = Number(detail.red) || 0;
+                    var g = Number(detail.green) || 0;
+                    var b = Number(detail.blue) || 0;
+                    var calcAvg = ((r + g + b) / 3).toFixed(2);
+                    var calcLum = (0.299 * r + 0.587 * g + 0.114 * b).toFixed(2);
                     rows.push([
                         detail.id,
                         detail.header_id,
                         detail.timestamp,
-                        detail.red,
-                        detail.blue,
-                        detail.clear,
-                        detail.green,
-                        detail.avg.toFixed(2),
-                        detail.avg_pro.toFixed(2)
+                        r.toFixed(2),
+                        g.toFixed(2),
+                        b.toFixed(2),
+                        calcAvg,
+                        calcLum
                     ]);
                 });
 

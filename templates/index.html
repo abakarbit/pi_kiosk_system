@@ -1613,6 +1613,20 @@
             <button class="bt bt-sm bt-p" onclick="expCSV()">
               <i class="fas fa-download"></i> Export CSV Terpilih
             </button>
+            <div style="flex:1;display:flex;justify-content:flex-end;">
+              <div style="position:relative;display:flex;align-items:center;width:100%;max-width:220px;">
+                <i class="fas fa-search" style="position:absolute;left:9px;font-size:11px;color:var(--fg3);opacity:.7;"></i>
+                <input
+                  type="text"
+                  id="hSearch"
+                  placeholder="Cari nama, ID, tanggal..."
+                  readonly
+                  onclick="openCalibOSK('hSearch')"
+                  oninput="onHistSearch(this.value)"
+                  style="flex:1;min-width:0;background:var(--card);border:1px solid var(--border);color:var(--fg2);padding:6px 10px 6px 26px;border-radius:var(--rad);font-size:11px;font-family:'Consolas',monospace;outline:none;min-height:36px;cursor:pointer;"
+                />
+              </div>
+            </div>
           </div>
           <div class="pnl htw">
             <div class="hsc">
@@ -1817,7 +1831,7 @@
     <div id="calibOskBg" style="display:none;position:fixed;inset:0;z-index:150;background:rgba(0,0,0,0.5);" onclick="closeCalibOSK(false)"></div>
     <div id="calibOskPanel" style="display:none;position:fixed;bottom:0;left:0;right:0;z-index:151;background:var(--bg);border-top:2px solid var(--border);border-radius:14px 14px 0 0;padding:10px 10px 8px;">
       <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px;">
-        <span style="font-size:11px;font-weight:600;color:var(--fg3);white-space:nowrap;">Nama Kalibrasi</span>
+        <span id="oskTitle" style="font-size:11px;font-weight:600;color:var(--fg3);white-space:nowrap;">Nama Kalibrasi</span>
         <div style="flex:1;background:var(--card);border:1px solid var(--acc);border-radius:var(--rad);padding:5px 10px;font-size:12px;font-family:'Consolas',monospace;color:var(--fg2);min-height:30px;display:flex;align-items:center;gap:1px;">
           <span id="calibOskDisp" style="word-break:break-all;"></span><span style="font-weight:300;opacity:0.7;">|</span>
         </div>
@@ -1877,7 +1891,6 @@
         S.visibleColumns = CALIB_COLUMNS.map(function(c) { return c.key; });
         loadDB();
         loadColumnConfig();
-        updBat(S.ups.pct);
         updWifi();
         renderLat();
         initDtSelects();
@@ -2232,14 +2245,44 @@
       // ============================================================
       //  UPS BATERAI
       // ============================================================
-      function readUPS() {}
+      function readUPS() {
+        fetch("/api/ups/read")
+          .then(function(r) { return r.json(); })
+          .then(function(res) {
+            if (res.success && res.data) {
+              const d = res.data;
+              S.ups = {
+                v: Number(d.voltage) || 0,
+                a: Number(d.current) || 0,
+                w: Number(d.power) || 0,
+                pct: Number(d.percentage) || 0,
+              };
+              if (d.error) {
+                setBatUnknown();
+                return;
+              }
+              updBat(S.ups.pct);
+            } else {
+              setBatUnknown();
+            }
+          })
+          .catch(function() {
+            setBatUnknown();
+          });
+      }
+
+      function setBatUnknown() {
+        const l = document.getElementById("hbatP");
+        if (l) l.textContent = "--%";
+      }
 
       function updBat(p) {
         const f = document.getElementById("hbatF"),
           l = document.getElementById("hbatP");
+        p = Math.max(0, Math.min(100, Number(p) || 0));
         f.style.width = p + "%";
         l.textContent = p + "%";
-        let c = p <= 15 ? "var(--err)" : p <= 30 ? "var(--warn)" : "var(--ok)";
+        let c = p < 20 ? "var(--err)" : p <= 30 ? "var(--warn)" : "var(--ok)";
         f.style.background = c;
         l.style.color = c;
       }
@@ -2517,6 +2560,28 @@
       // ============================================================
       //  HISTORY
       // ============================================================
+      let _histQuery = "";
+
+      function onHistSearch(val) {
+        _histQuery = (val || "").trim().toLowerCase();
+        renderHist(getFilteredHist());
+      }
+
+      function getFilteredHist() {
+        if (!_histQuery) return S.calibH;
+        return S.calibH.filter((h) => {
+          const hay =
+            String(h.id) +
+            " " +
+            (h.calibname || "") +
+            " " +
+            (h.timestamp || "") +
+            " " +
+            String(h.sum || "");
+          return hay.toLowerCase().indexOf(_histQuery) !== -1;
+        });
+      }
+
       function renderHist(rows) {
         const b = document.getElementById("hBody"),
           e = document.getElementById("hEmpty"),
@@ -2524,6 +2589,11 @@
         if (!rows || !rows.length) {
           b.innerHTML = "";
           e.style.display = "flex";
+          const txt = e.querySelector("span");
+          if (txt)
+            txt.textContent = S.calibH.length
+              ? "Tidak ada hasil untuk pencarian"
+              : "Belum ada history kalibrasi";
           if (cbAll) cbAll.checked = false;
           return;
         }
@@ -2540,7 +2610,6 @@
               </tr>`,
           )
           .join("");
-        S.calibH = rows;
         if (cbAll) cbAll.checked = false;
       }
       function toggleAllCb(master) {
@@ -2552,8 +2621,10 @@
         fetch("/api/kalibrasi/history")
           .then((res) => res.json())
           .then((res) => {
-            if (res.success) renderHist(res.data || []);
-            else toast(res.error || "Gagal memuat riwayat", "te");
+            if (res.success) {
+              S.calibH = res.data || [];
+              renderHist(getFilteredHist());
+            } else toast(res.error || "Gagal memuat riwayat", "te");
           })
           .catch(() => toast("Gagal memuat riwayat kalibrasi", "te"));
       }
@@ -3255,32 +3326,47 @@
       // ============================================================
       //  CALIB NAME — On-screen keyboard
       // ============================================================
-      let calibOskVal = "", calibOskShift = false;
+      let oskTarget = "calibName", calibOskVal = "", calibOskShift = false;
 
-      function openCalibOSK() {
-        calibOskVal = document.getElementById("calibName").value;
+      function openCalibOSK(targetId) {
+        oskTarget = targetId || "calibName";
+        calibOskVal = document.getElementById(oskTarget).value;
         calibOskShift = false;
+        document.getElementById("oskTitle").textContent =
+          oskTarget === "hSearch" ? "Cari History" : "Nama Kalibrasi";
         document.getElementById("calibOskBg").style.display = "block";
         document.getElementById("calibOskPanel").style.display = "block";
         renderCalibOskDisp();
         renderCalibOSK();
       }
       function closeCalibOSK(apply) {
-        if (apply) document.getElementById("calibName").value = calibOskVal;
+        if (apply && oskTarget === "calibName") {
+          document.getElementById(oskTarget).value = calibOskVal;
+        }
         document.getElementById("calibOskBg").style.display = "none";
         document.getElementById("calibOskPanel").style.display = "none";
       }
       function renderCalibOskDisp() {
         document.getElementById("calibOskDisp").textContent = calibOskVal;
       }
+      function oskLiveApply() {
+        if (oskTarget !== "hSearch") return;
+        const inp = document.getElementById("hSearch");
+        if (inp) {
+          inp.value = calibOskVal;
+          onHistSearch(calibOskVal);
+        }
+      }
       function calibKChar(ch) {
         calibOskVal += ch;
         if (calibOskShift) { calibOskShift = false; renderCalibOSK(); }
         renderCalibOskDisp();
+        oskLiveApply();
       }
       function calibKDel() {
         calibOskVal = calibOskVal.slice(0, -1);
         renderCalibOskDisp();
+        oskLiveApply();
       }
       function calibKShift() {
         calibOskShift = !calibOskShift;
@@ -3289,6 +3375,7 @@
       function calibKSpace() {
         calibOskVal += " ";
         renderCalibOskDisp();
+        oskLiveApply();
       }
       function renderCalibOSK() {
         const c = document.getElementById("calibOsk");

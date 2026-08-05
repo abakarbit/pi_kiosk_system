@@ -6,6 +6,8 @@ itsdangerous==2.2.0
 Jinja2==3.1.6
 MarkupSafe==3.0.3
 RPi.GPIO==0.7.1
-smbus2==0.6.1
+# UPS 3S (INA219) — membaca status baterai via I2C.
+# Native Raspberry Pi: sudo apt install python3-smbus
+smbus-cffi==0.5.1
 tzlocal==5.3.1
 Werkzeug==3.1.8

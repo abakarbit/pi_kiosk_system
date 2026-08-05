@@ -213,6 +213,24 @@ def api_kalibrasi_history():
 # ROUTE: UPS Battery
 # ═══════════════════════════════════════════════════════════════════════════════
 
+@app.route("/api/ups/read")
+def api_ups_read():
+    """
+    Baca status baterai UPS secara real-time langsung dari hardware.
+
+    Response:
+        { "success": true, "data": { "voltage": 12.1, "current": 0.3,
+                                     "power": 3.6, "percentage": 86.1,
+                                     "error": null } }
+        Jika hardware tidak merespons, 'error' berisi pesan dan nilai = 0.
+    """
+    try:
+        return ok(ups.read())
+    except Exception as e:
+        logger.error("api_ups_read error: %s", e)
+        return err("Gagal membaca UPS.")
+
+
 @app.route("/api/ups/latest")
 def api_ups_latest():
     """
@@ -657,7 +675,7 @@ def initialize_app() -> None:
 
   
     if not ups.begin():
-        logger.warning("  ⚠ UPS Module GAGAL diinisialisasi. Periksa koneksi I2C & alamat 0x%02X.", 0x42)
+        logger.warning("  ⚠ UPS Module GAGAL diinisialisasi. Periksa koneksi I2C & alamat 0x%02X.", 0x41)
     else:
         logger.info("  ✓ UPS Module OK")
 
